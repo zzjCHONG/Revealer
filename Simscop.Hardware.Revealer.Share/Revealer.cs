@@ -20,6 +20,154 @@ namespace EyeCam.Shared
         private NativeMethods.ExportEventCallBackDelegate? _exportCallback;
         private NativeMethods.FrameCallBackDelegate? _frameCallback;
 
+        #region 常量定义
+
+        /// <summary>
+        /// 读出模式列表
+        /// 0 = bit11_HS_Low    - 11位高速低增益（适合明亮场景）
+        /// 1 = bit11_HS_High   - 11位高速高增益（适合弱光场景）
+        /// 6 = bit12_CMS       - 12位低噪声模式（高质量）
+        /// 7 = bit16_From11    - 16位高动态范围（高对比度场景）
+        /// </summary>
+        public static readonly List<string> ReadoutModeList = new()
+        {
+            "11位高速低增益",      // 0
+            "11位高速高增益",      // 1
+            "",                   // 2 - 未使用
+            "",                   // 3 - 未使用
+            "",                   // 4 - 未使用
+            "",                   // 5 - 未使用
+            "12位低噪声模式",      // 6
+            "16位高动态范围"       // 7
+         };
+
+        /// <summary>
+        /// Binning模式列表
+        /// </summary>
+        public static readonly List<string> BinningModeList = new()
+        {
+            "1 x 1 Bin (全分辨率)",                    // 0
+            "2 x 2 Bin (1/4分辨率, 4倍亮度)",         // 1
+            "4 x 4 Bin (1/16分辨率, 16倍亮度)"        // 2
+        };
+
+        /// <summary>
+        /// 伪彩映射模式列表
+        /// </summary>
+        public static readonly List<string> PseudoColorMapList = new()
+        {
+            "HSV",                // 0: HSV色彩映射
+            "Jet (Matlab风格)",   // 1: Jet色彩映射
+            "红色渐变",           // 2: 红色渐变
+            "绿色渐变",           // 3: 绿色渐变
+            "蓝色渐变"            // 4: 蓝色渐变
+        };
+
+        /// <summary>
+        /// 自动曝光模式列表
+        /// </summary>
+        public static readonly List<string> AutoExposureModeList = new()
+        {
+            "中央区域",           // 0: 中央模式
+            "右侧区域",           // 1: 右侧模式
+            "关闭"                // 2: 关闭自动曝光
+        };
+
+        /// <summary>
+        /// 自动色阶模式列表
+        /// </summary>
+        public static readonly List<string> AutoLevelModeList = new()
+        {
+            "关闭",               // 0: 关闭
+            "右色阶",             // 1: 右色阶
+            "左色阶",             // 2: 左色阶
+            "左右色阶"            // 3: 左右色阶
+        };
+
+        /// <summary>
+        /// 触发输入类型列表
+        /// </summary>
+        public static readonly List<string> TriggerInTypeList = new()
+        {
+            "关闭触发",                   // 0
+            "外部边缘触发",               // 1
+            "外部开始触发",               // 2
+            "外部电平触发",               // 3
+            "同步读出",                   // 4
+            "软件触发"                    // 5
+        };
+
+        /// <summary>
+        /// 触发激活方式列表
+        /// </summary>
+        public static readonly List<string> TriggerActivationList = new()
+        {
+            "上升沿",            // 0
+            "下降沿",            // 1
+            "高电平",            // 2
+            "低电平"             // 3
+        };
+
+        /// <summary>
+        /// 旋转模式列表
+        /// </summary>
+        public static readonly List<string> RotationModeList = new()
+        {
+            "0度",               // 0
+            "90度",              // 1
+            "180度",             // 2
+            "270度"              // 3
+        };
+
+        /// <summary>
+        /// 翻转模式列表
+        /// </summary>
+        public static readonly List<string> FlipModeList = new()
+        {
+            "垂直翻转 (沿X轴)",          // 0
+            "水平翻转 (沿Y轴)",          // 1
+            "垂直+水平翻转"              // 2
+        };
+
+        /// <summary>
+        /// 录像格式列表
+        /// </summary>
+        public static readonly List<string> RecordFormatList = new()
+        {
+            "TIFF (多文件)",             // 0
+            "BMP (暂不支持)",            // 1
+            "SCD",                      // 2
+            "TIFF Video (单文件)"       // 3
+        };
+
+        /// <summary>
+        /// 像素格式列表（常用）
+        /// </summary>
+        public static readonly Dictionary<string, int> PixelFormatMap = new()
+        {
+            ["Mono8"] = 0x01080001,
+            ["Mono10"] = 0x01100005,
+            ["Mono12"] = 0x010C0047,
+            ["Mono16"] = 0x01100003,
+            ["RGB8"] = 0x02180014,
+            ["BGR8"] = 0x02180015
+        };
+
+        /// <summary>
+        /// 图像处理功能列表
+        /// </summary>
+        public static readonly List<string> ImageProcessingFeatureList = new()
+        {
+            "亮度",              // 0: Brightness [-100, 100]
+            "对比度",            // 1: Contrast [0, 100]
+            "Gamma",            // 2: Gamma [0, 100]
+            "伪彩",              // 3: PseudoColor
+            "旋转",              // 4: Rotation
+            "翻转"               // 5: Flip
+        };
+
+        #endregion
+
         #region 静态方法（SDK级别）
 
         /// <summary>
@@ -742,7 +890,7 @@ namespace EyeCam.Shared
             int ret = NativeMethods.Camera_SetStringFeatureValue(_handle, featureName, value);
             if (ret != 0)
                 throw new CameraException(ret);
-        }   
+        }
 
         /// <summary>执行命令属性</summary>
         /// <param name="commandName">命令名称，如 "TriggerSoftware"</param>
@@ -892,7 +1040,9 @@ namespace EyeCam.Shared
             set => SetFloatFeature("AcquisitionFrameRate", value);
         }
 
-        /// <summary>获取最大可用帧率</summary>
+        /// <summary>
+        /// 获取最大可用帧率
+        /// </summary>
         public double MaxAcquisitionFrameRate => GetFloatFeatureMax("AcquisitionFrameRate");
 
         /// <summary>帧率使能</summary>

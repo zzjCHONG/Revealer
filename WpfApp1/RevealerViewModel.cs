@@ -3,9 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using OpenCvSharp;
 using OpenCvSharp.WpfExtensions;
-using Simscop.Spindisk.Core.FakeHardware;
 using Simscop.Spindisk.Core.Interfaces;
 using Simscop.Spindisk.Hardware.Revealer;
+using Simscop.Spindisk.Wpf.Hardware.Camera.TuCam.SettingViews;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -71,20 +71,22 @@ namespace WpfApp1
             });
 
             ResolutionsList = _camera.ResolutionsList;
-            GainList = _camera.GainList;
             ImageModeList = _camera.ImageModesList;
             CompositeModeList = _camera.CompositeModeList;
+            PseudoColorList = _camera.PseudoColorList;
 
             IsFlipHorizontal = _camera.IsFlipHorizontally;
             IsFlipVertical = _camera.IsFlipVertially;
             IsAutoExposure = _camera.IsAutoExposure;
             IsAutoLevel = _camera.IsAutoLevel;
 
+            FrameRateLimit = _camera.FrameRateLimit;
+
             ResolutionIndex = 0;
-            GainIndex = 0;
-            ImageModeIndex = 1;
+            PseudoColorIndex = 0;
+            //ImageModeIndex = 1;
             CompositeModeIndex = 0;
-            IsFlipHorizontal = true;
+            IsFlipHorizontal = false;
             IsFlipVertical = false;
             IsAutoExposure = false;
             //IsAutoLevel = true;//相机在开启采集后才能正确开启该设置
@@ -104,6 +106,7 @@ namespace WpfApp1
             RightLevel = _camera.CurrentLevel.Right;
 
             FrameRate = _camera!.FrameRate;
+            FrameRateLimit=_camera!.FrameRateLimit;
             IsAutoLevel = _camera!.IsAutoLevel;
         }
 
@@ -165,9 +168,6 @@ namespace WpfApp1
         private List<string> _imageModeList = new();
 
         [ObservableProperty]
-        private List<string> _gainList = new();
-
-        [ObservableProperty]
         private ObservableCollection<string> _roiList = new();
 
         [ObservableProperty]
@@ -177,13 +177,16 @@ namespace WpfApp1
         private List<string> _compositeModeList = new();
 
         [ObservableProperty]
+        private List<string> _pseudoColorList = new();
+
+        [ObservableProperty]
+        private int pseudoColorIndex = -1;
+
+        [ObservableProperty]
         private int resolutionIndex = -1;
 
         [ObservableProperty]
         private int _imageModeIndex;
-
-        [ObservableProperty]
-        private int _gainIndex;
 
         [ObservableProperty]
         private int _ROIIndex;
@@ -196,6 +199,22 @@ namespace WpfApp1
 
         [ObservableProperty]
         private bool _propControlIsEnable = true;
+
+        [ObservableProperty]
+        private bool frameRateEnable;
+
+        [ObservableProperty]
+        private double frameRateLimit;
+
+        partial void OnFrameRateLimitChanged(double value)
+        {
+            _camera!.FrameRateLimit = value;
+        }
+
+        partial void OnFrameRateEnableChanged(bool value)
+        {
+            _camera!.FrameRateEnable = value;
+        }
 
         [RelayCommand]
         void Init()
@@ -211,21 +230,23 @@ namespace WpfApp1
         {
             IsFlipHorizontal = false;
             IsFlipVertical = false;
-            Brightness = 90;
-            Contrast = 128;
-            Gamma = 100;
+            Brightness = 50;
+            Contrast = 50;
+            Gamma = 56;
             Exposure = 10;
             LeftLevel = 0;
             RightLevel = 65535;
 
             ResolutionIndex = 0;
-            CompositeModeIndex = 0;
+            ROIIndex = 0;
+            PseudoColorIndex = 0;
+            ImageModeIndex = 0;
         }
 
         private static string? _lastSaveDirectory;
 
         [ObservableProperty]
-        private string _root = "E:\\MoticData\\Camera";
+        private string _root = "D:\\MoticData\\Camera";
 
         [ObservableProperty]
         private string _defaultFileName = "";
@@ -322,7 +343,9 @@ namespace WpfApp1
         partial void OnIsAutoLevelChanged(bool value)
         {
             IsLevelTextboxEnable = !value;
-            _ = HandleAutoLevelAsync(value);
+            _camera!.IsAutoLevel = value;
+
+            //_ = HandleAutoLevelAsync(value);
         }
 
         private async Task HandleAutoLevelAsync(bool value)
@@ -404,8 +427,7 @@ namespace WpfApp1
 
         partial void OnBrightnessChanged(double value)
         {
-            if (IsAutoExposure)
-                _camera!.Brightness = value;
+            _camera!.Brightness = value;
         }
 
         partial void OnContrastChanged(double value)
@@ -428,11 +450,6 @@ namespace WpfApp1
             _camera!.SetImageMode(value);
         }
 
-        partial void OnGainIndexChanged(int value)
-        {
-            _camera!.Gain = (ushort)value;
-        }
-
         partial void OnLeftLevelChanged(int value)
         {
             if (!IsAutoLevel)
@@ -443,6 +460,11 @@ namespace WpfApp1
         {
             if (!IsAutoLevel)
                 _camera!.CurrentLevel = (LeftLevel, value);
+        }
+
+        partial void OnPseudoColorIndexChanged(int value)
+        {
+            _camera!.PseudoColor = value;
         }
 
         async partial void OnCompositeModeIndexChanged(int value)
@@ -476,7 +498,7 @@ namespace WpfApp1
             if (width > 0 && height > 0)
             {
                 //WeakReferenceMessenger.Default.Send(new ResolutionChangeControlScaleMessage(width, height));
-                Debug.WriteLine($"[TUCamViewModel] 分辨率切换: {width}x{height}");
+                Console.WriteLine($"[TUCamViewModel] 分辨率切换: {width}x{height}");
             }
 
             Application.Current.Dispatcher.Invoke(() =>
@@ -547,15 +569,15 @@ namespace WpfApp1
             {
                 OpenCustomROI();
             }
-            else if (RoiList[roiIndex].Contains("全画幅"))
-            {
-                _camera!.DisableROI();
-                PropControlIsEnable = false;
-                CamROI(RoiList[0]);
-                ROIIndex = 0;//纯粹切换显示
-                PropControlIsEnable = true;
-                preRoiIndex = ROIIndex;
-            }
+            //else if (RoiList[roiIndex].Contains("全画幅"))
+            //{
+            //    _camera!.DisableROI();
+            //    PropControlIsEnable = false;
+            //    CamROI(RoiList[0]);
+            //    ROIIndex = 0;//纯粹切换显示
+            //    PropControlIsEnable = true;
+            //    preRoiIndex = ROIIndex;
+            //}
             else
             {
                 PropControlIsEnable = false;
@@ -584,18 +606,18 @@ namespace WpfApp1
             Application.Current.Dispatcher.BeginInvoke(() =>
             {
                 var (maxWidth, maxHeight) = GetCurrentSensorSize();
-                //var dialog = new CustomROIWindow(maxWidth, maxHeight);
+                var dialog = new CustomROIWindow(maxWidth, maxHeight);
 
-                //if (dialog.ShowDialog() == true)
-                //{
-                //    _camera?.SetROI(dialog.ROIWidth, dialog.ROIHeight, dialog.OffsetX, dialog.OffsetY);
-                //}
-                //else
-                //{
-                //    PropControlIsEnable = false;
-                //    ROIIndex = preRoiIndex;//纯粹切换显示
-                //    PropControlIsEnable = true;
-                //}
+                if (dialog.ShowDialog() == true)
+                {
+                    _camera?.SetROI(dialog.ROIWidth, dialog.ROIHeight, dialog.OffsetX, dialog.OffsetY);
+                }
+                else
+                {
+                    PropControlIsEnable = false;
+                    ROIIndex = preRoiIndex;//纯粹切换显示
+                    PropControlIsEnable = true;
+                }
             });
         }
 

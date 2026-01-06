@@ -111,15 +111,15 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 _camera.ResetROI();
                 Console.WriteLine($"[INFO] Sensor size: {_camera.SensorWidth}x{_camera.SensorHeight}");
 
-                // 2. 设置读出模式为高动态（16位）
-                _camera.ReadoutMode = 7; // bit16_From11
+                // 2. 设置读出模式为高动态（16位）- 使用索引7
+                _camera.ReadoutMode = 7; // 16位高动态范围
                 _currentReadoutMode = 7;
-                Console.WriteLine("[INFO] Readout mode: bit16_From11 (High Dynamic Range)");
+                Console.WriteLine($"[INFO] Readout mode: {EyeCam.Shared.Revealer.ReadoutModeList[7]}");
 
-                // 3. 设置Binning模式为1x1（全分辨率）
-                _camera.BinningMode = 0; // OneByOne
+                // 3. 设置Binning模式为1x1（全分辨率）- 使用索引0
+                _camera.BinningMode = 0;
                 _currentBinningMode = 0;
-                Console.WriteLine("[INFO] Binning mode: 1x1 (Full Resolution)");
+                Console.WriteLine($"[INFO] Binning mode: {EyeCam.Shared.Revealer.BinningModeList[0]}");
 
                 // 4. 设置像素格式为Mono16
                 try
@@ -140,17 +140,15 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 _camera.FrameRateEnable = false;
                 Console.WriteLine("[INFO] Frame rate control: Disabled (Max speed)");
 
-                // 7. 设置为连续采集模式（关闭触发）
-                _camera.ConfigureContinuousMode();
-                Console.WriteLine("[INFO] Trigger mode: Continuous");
+                // 7. 设置为连续采集模式（关闭触发）- 使用索引0
+                _camera.TriggerInType = 0; // Off
+                Console.WriteLine($"[INFO] Trigger mode: {EyeCam.Shared.Revealer.TriggerInTypeList[0]}");
 
                 // 8. 禁用图像处理功能（使用原始数据）
-                SetImageProcessingEnabled(ImageProcessingFeature.Brightness, false);
-                SetImageProcessingEnabled(ImageProcessingFeature.Contrast, false);
-                SetImageProcessingEnabled(ImageProcessingFeature.Gamma, false);
-                SetImageProcessingEnabled(ImageProcessingFeature.PseudoColor, false);
-                SetImageProcessingEnabled(ImageProcessingFeature.Rotation, false);
-                SetImageProcessingEnabled(ImageProcessingFeature.Flip, false);
+                for (int i = 0; i < 6; i++)
+                {
+                    _camera.SetImageProcessingEnabled(i, false);
+                }
                 Console.WriteLine("[INFO] Image processing: Disabled");
 
                 // 9. 设置温度控制
@@ -213,11 +211,12 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     info[InfoEnum.SerialNumber] = deviceInfo.SerialNumber ?? "Unknown";
                     info[InfoEnum.Version] = EyeCam.Shared.Revealer.GetVersion();
                     info[InfoEnum.FirmwareVersion] = deviceInfo.DeviceVersion ?? "Unknown";
- 
+
                     Console.WriteLine(deviceInfo.ManufacturerInfo);
                     Console.WriteLine(deviceInfo.CameraName);
                     Console.WriteLine(_camera.SensorWidth);
                     Console.WriteLine(_camera.SensorHeight);
+                    Console.WriteLine(_camera.PixelFormatSymbol);
                     Console.WriteLine($"{_camera.DeviceTemperature:F1}°C");
 
                 }
@@ -352,10 +351,10 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 else
                 {
                     // 单帧采集模式（软件触发）
-                    bool wasInContinuousMode = _camera.TriggerInType == 0;
+                    var previousMode = _camera.TriggerInType;
 
-                    // 配置软件触发
-                    _camera.ConfigureSoftwareTrigger();
+                    // 配置软件触发 - 使用索引5
+                    _camera.TriggerInType = 5; // Software
                     _camera.SetBufferCount(3);
                     _camera.StartGrabbing();
 
@@ -369,11 +368,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     // 停止采集
                     _camera.StopGrabbing();
 
-                    // 恢复连续模式
-                    if (wasInContinuousMode)
-                    {
-                        _camera.ConfigureContinuousMode();
-                    }
+                    // 恢复之前的触发模式
+                    _camera.TriggerInType = previousMode;
 
                     return img != null && !img.Empty();
                 }
@@ -439,30 +435,26 @@ namespace Simscop.Spindisk.Hardware.Revealer
         /// </summary>
         private static (MatType matType, int depth, int channels) GetMatTypeFromPixelFormat(int pixelFormat)
         {
-            return pixelFormat switch
+            // 使用EyeCam.Shared.Revealer.PixelFormatMap进行匹配
+            foreach (var kvp in EyeCam.Shared.Revealer.PixelFormatMap)
             {
-                // Mono格式
-                0x01080001 => (MatType.CV_8UC1, 8, 1),      // Mono8
-                0x01100003 => (MatType.CV_16UC1, 16, 1),    // Mono16
-                0x010C0047 => (MatType.CV_16UC1, 12, 1),    // Mono12
-                0x01100005 => (MatType.CV_16UC1, 10, 1),    // Mono10
+                if (kvp.Value == pixelFormat)
+                {
+                    return kvp.Key switch
+                    {
+                        "Mono8" => (MatType.CV_8UC1, 8, 1),
+                        "Mono10" => (MatType.CV_16UC1, 10, 1),
+                        "Mono12" => (MatType.CV_16UC1, 12, 1),
+                        "Mono16" => (MatType.CV_16UC1, 16, 1),
+                        "RGB8" => (MatType.CV_8UC3, 8, 3),
+                        "BGR8" => (MatType.CV_8UC3, 8, 3),
+                        _ => (MatType.CV_8UC1, 8, 1)
+                    };
+                }
+            }
 
-                // RGB格式
-                0x02180014 => (MatType.CV_8UC3, 8, 3),      // RGB8
-                0x02180015 => (MatType.CV_8UC3, 8, 3),      // BGR8
-                0x02300016 => (MatType.CV_16UC3, 16, 3),    // RGB16
-
-                // RGBA格式
-                0x02200016 => (MatType.CV_8UC4, 8, 4),      // RGBA8
-                0x02200017 => (MatType.CV_8UC4, 8, 4),      // BGRA8
-
-                // Bayer格式
-                0x010800C5 or 0x010800C6 or 0x010800C7 or 0x010800C8 => (MatType.CV_8UC1, 8, 1),
-                0x011000CD or 0x011000CE or 0x011000CF or 0x011000D0 => (MatType.CV_16UC1, 16, 1),
-
-                // 默认：Mono8
-                _ => (MatType.CV_8UC1, 8, 1)
-            };
+            // 默认：Mono8
+            return (MatType.CV_8UC1, 8, 1);
         }
 
         #endregion
@@ -542,15 +534,15 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 {
                     if (value)
                     {
-                        // 启用自动曝光：模式0=中央，目标灰度128
-                        _camera.SetAutoExposureParam(mode: 0, targetGray: 128);
+                        // 启用自动曝光：中央模式，目标灰度128
+                        _camera.SetAutoExposureParam(0, 128); // 0 = Center
                         int actualGray = _camera.ExecuteAutoExposure();
                         Console.WriteLine($"[INFO] Auto exposure executed, target gray: {actualGray}");
                     }
                     else
                     {
-                        // 关闭自动曝光：模式2=关闭
-                        _camera.SetAutoExposureParam(mode: 2, targetGray: -1);
+                        // 关闭自动曝光
+                        _camera.SetAutoExposureParam(2, -1); // 2 = Off
                         Console.WriteLine("[INFO] Auto exposure disabled");
                     }
 
@@ -576,7 +568,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    return _camera.GetImageProcessingValue((int)ImageProcessingFeature.Gamma);
+                    return _camera.GetImageProcessingValue(2); // 2 = Gamma
                 }
                 catch
                 {
@@ -591,8 +583,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     int clampedValue = (int)Math.Clamp(value, 0, 100);
-                    _camera.SetImageProcessingValue((int)ImageProcessingFeature.Gamma, clampedValue);
-                    _camera.SetImageProcessingEnabled((int)ImageProcessingFeature.Gamma, true);
+                    _camera.SetImageProcessingValue(2, clampedValue); // 2 = Gamma
+                    _camera.SetImageProcessingEnabled(2, true);
                 }
                 catch (Exception ex)
                 {
@@ -610,7 +602,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    return _camera.GetImageProcessingValue((int)ImageProcessingFeature.Contrast);
+                    return _camera.GetImageProcessingValue(1); // 1 = Contrast
                 }
                 catch
                 {
@@ -625,8 +617,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     int clampedValue = (int)Math.Clamp(value, 0, 100);
-                    _camera.SetImageProcessingValue((int)ImageProcessingFeature.Contrast, clampedValue);
-                    _camera.SetImageProcessingEnabled((int)ImageProcessingFeature.Contrast, true);
+                    _camera.SetImageProcessingValue(1, clampedValue); // 1 = Contrast
+                    _camera.SetImageProcessingEnabled(1, true);
                 }
                 catch (Exception ex)
                 {
@@ -644,7 +636,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    return _camera.GetImageProcessingValue((int)ImageProcessingFeature.Brightness);
+                    return _camera.GetImageProcessingValue(0); // 0 = Brightness
                 }
                 catch
                 {
@@ -659,8 +651,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     int clampedValue = (int)Math.Clamp(value, -100, 100);
-                    _camera.SetImageProcessingValue((int)ImageProcessingFeature.Brightness, clampedValue);
-                    _camera.SetImageProcessingEnabled((int)ImageProcessingFeature.Brightness, true);
+                    _camera.SetImageProcessingValue(0, clampedValue); // 0 = Brightness
+                    _camera.SetImageProcessingEnabled(0, true);
                 }
                 catch (Exception ex)
                 {
@@ -673,69 +665,9 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         #region 增益控制
 
-        public ushort Gain
-        {
-            get
-            {
-                if (_camera == null)
-                    return 0;
+        public ushort Gain { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-                try
-                {
-                    if (_camera.IsFeatureAvailable("Gain"))
-                    {
-                        return (ushort)_camera.GetIntFeature("Gain");
-                    }
-                }
-                catch { }
-
-                return 0;
-            }
-            set
-            {
-                if (_camera == null)
-                    return;
-
-                try
-                {
-                    if (_camera.IsFeatureAvailable("Gain") && _camera.IsFeatureWriteable("Gain"))
-                    {
-                        _camera.SetIntFeature("Gain", value);
-                    }
-                    else
-                    {
-                        Console.WriteLine("[WARNING] Gain control not available");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    HandleCameraException(ex, "设置增益");
-                }
-            }
-        }
-
-        public (ushort Min, ushort Max) GainRange
-        {
-            get
-            {
-                if (_camera == null)
-                    return (0, 100);
-
-                try
-                {
-                    if (_camera.IsFeatureAvailable("Gain"))
-                    {
-                        var range = _camera.GetIntFeatureRange("Gain");
-                        return ((ushort)range.Min, (ushort)range.Max);
-                    }
-                }
-                catch { }
-
-                return (0, 100);
-            }
-        }
-
-        public List<string> GainList => new() { "Low", "Medium", "High" };
+        public (ushort Min, ushort Max) GainRange => throw new NotImplementedException();
 
         #endregion
 
@@ -751,7 +683,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     int mode = _camera.GetAutoLevels();
-                    return mode > 0;
+                    return mode > 0; // 0=Off, 其他为自动
                 }
                 catch
                 {
@@ -765,16 +697,15 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    // 0=关闭, 1=右, 2=左, 3=左右
-                    _camera.SetAutoLevels(value ? 3 : 0);
+                    _camera.SetAutoLevels(value ? 3 : 0); // 3=LeftRight, 0=Off
 
                     if (value)
                     {
-                        Console.WriteLine("[INFO] Auto levels enabled (Left & Right)");
+                        Console.WriteLine($"[INFO] Auto levels enabled: {EyeCam.Shared.Revealer.AutoLevelModeList[3]}");
                     }
                     else
                     {
-                        Console.WriteLine("[INFO] Auto levels disabled");
+                        Console.WriteLine($"[INFO] Auto levels disabled: {EyeCam.Shared.Revealer.AutoLevelModeList[0]}");
                     }
                 }
                 catch (Exception ex)
@@ -875,9 +806,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
-        public double FpsCal => _calculatedFps;
-
-        public bool IsFlipHorizontally
+        public bool FrameRateEnable
         {
             get
             {
@@ -886,7 +815,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    return _camera.GetImageProcessingEnabled((int)ImageProcessingFeature.Flip);
+                    return _camera.FrameRateEnable;
                 }
                 catch
                 {
@@ -900,8 +829,63 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    _camera.SetImageProcessingEnabled((int)ImageProcessingFeature.Flip, value);
-                    // 可能需要设置翻转方向（水平/垂直）
+                    _camera.FrameRateEnable = value;
+                }
+                catch (Exception ex)
+                {
+                    HandleCameraException(ex, "设置帧率限制");
+                }
+            }
+        }
+
+        public double FrameRateLimit
+        {
+            get
+            {
+                if (_camera == null) return 0;
+                return _camera.AcquisitionFrameRate;
+            }
+            set
+            {
+                if (_camera == null) return;
+
+                if (value > _camera.AcquisitionFrameRate)
+                    value = _camera.AcquisitionFrameRate;
+
+                _camera.AcquisitionFrameRate = value;
+            }
+        }
+
+        public double FpsCal => _calculatedFps;
+
+        public bool IsFlipHorizontally
+        {
+            get
+            {
+                if (_camera == null)
+                    return false;
+
+                try
+                {
+                    return _camera.GetImageProcessingEnabled(5); // 5 = Flip
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+            set
+            {
+                if (_camera == null)
+                    return;
+
+                try
+                {
+                    _camera.SetImageProcessingEnabled(5, value); // 5 = Flip
+                    if (value)
+                    {
+                        _camera.SetImageProcessingValue(5, 1); // 1 = Horizontal
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -910,7 +894,28 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
-        public bool IsFlipVertially { get; set; } // 需要软件实现
+        public bool IsFlipVertially
+        {
+            get => false;
+            set
+            {
+                if (_camera == null)
+                    return;
+
+                try
+                {
+                    _camera.SetImageProcessingEnabled(5, value); // 5 = Flip
+                    if (value)
+                    {
+                        _camera.SetImageProcessingValue(5, 0); // 0 = Vertical
+                    }
+                }
+                catch (Exception ex)
+                {
+                    HandleCameraException(ex, "设置垂直翻转");
+                }
+            }
+        }
 
         public int ClockwiseRotation
         {
@@ -921,7 +926,15 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    return _camera.GetImageProcessingValue((int)ImageProcessingFeature.Rotation);
+                    int modeValue = _camera.GetImageProcessingValue(4); // 4 = Rotation
+                    return modeValue switch
+                    {
+                        0 => 0,
+                        1 => 90,
+                        2 => 180,
+                        3 => 270,
+                        _ => 0
+                    };
                 }
                 catch
                 {
@@ -938,8 +951,17 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     int rotation = value % 360;
                     if (rotation < 0) rotation += 360;
 
-                    _camera.SetImageProcessingValue((int)ImageProcessingFeature.Rotation, rotation);
-                    _camera.SetImageProcessingEnabled((int)ImageProcessingFeature.Rotation, true);
+                    int mode = rotation switch
+                    {
+                        0 => 0,
+                        90 => 1,
+                        180 => 2,
+                        270 => 3,
+                        _ => 0
+                    };
+
+                    _camera.SetImageProcessingValue(4, mode); // 4 = Rotation
+                    _camera.SetImageProcessingEnabled(4, mode != 0);
                 }
                 catch (Exception ex)
                 {
@@ -1005,8 +1027,9 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    _camera.SetPseudoColorMap(value);
-                    _camera.SetImageProcessingEnabled((int)ImageProcessingFeature.PseudoColor,true);
+                    int mode = Math.Clamp(value, 0, EyeCam.Shared.Revealer.PseudoColorMapList.Count - 1);
+                    _camera.SetPseudoColorMap(mode);
+                    _camera.SetImageProcessingEnabled(3, mode > 0); // 3 = PseudoColor
                 }
                 catch (Exception ex)
                 {
@@ -1015,6 +1038,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
+        public List<string> PseudoColorList => EyeCam.Shared.Revealer.PseudoColorMapList;
 
         #endregion
 
@@ -1072,7 +1096,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         public bool SetResolution(int resolution)
         {
-            if (resolution < 0 || resolution >= BinningModeList.Count)
+            if (resolution < 0 || resolution >= EyeCam.Shared.Revealer.BinningModeList.Count)
                 return false;
 
             try
@@ -1082,13 +1106,13 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     StopCapture();
 
                 // 设置Binning模式
-                _camera.BinningMode = (ulong)resolution;
+                _camera!.BinningMode = (ulong)resolution;
                 _currentBinningMode = resolution;
 
                 if (wasCapturing)
                     StartCapture();
 
-                Console.WriteLine($"[INFO] Binning mode set to: {BinningModeList[resolution]}");
+                Console.WriteLine($"[INFO] Binning mode set to: {EyeCam.Shared.Revealer.BinningModeList[resolution]}");
                 return true;
             }
             catch (Exception ex)
@@ -1098,17 +1122,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
-        public List<string> ResolutionsList => BinningModeList;
-
-        /// <summary>
-        /// Binning模式列表
-        /// </summary>
-        private static readonly List<string> BinningModeList = new()
-        {
-            "1 x 1 Bin (Full Resolution)",
-            "2 x 2 Bin (1/4 Resolution, 4x Brightness)",
-            "4 x 4 Bin (1/16 Resolution, 16x Brightness)"
-        };
+        public List<string> ResolutionsList => EyeCam.Shared.Revealer.BinningModeList;
 
         public void SetROI(int width, int height, int offsetX, int offsetY)
         {
@@ -1177,7 +1191,10 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         public bool SetImageMode(int imageMode)
         {
-            if (imageMode < 0 || imageMode >= ImageModesList.Count)
+            // 索引映射：0->0, 1->1, 2->6, 3->7
+            int[] modeMap = { 0, 1, 6, 7 };
+
+            if (imageMode < 0 || imageMode >= modeMap.Length)
                 return false;
 
             try
@@ -1186,23 +1203,14 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 if (wasCapturing)
                     StopCapture();
 
-                // 映射到ReadoutMode
-                ulong readoutMode = imageMode switch
-                {
-                    0 => 0, // bit11_HS_Low
-                    1 => 1, // bit11_HS_High
-                    2 => 6, // bit12_CMS
-                    3 => 7, // bit16_From11
-                    _ => 7
-                };
-
-                _camera.ReadoutMode = readoutMode;
-                _currentReadoutMode = (int)readoutMode;
+                int actualMode = modeMap[imageMode];
+                _camera.ReadoutMode = (ulong)actualMode;
+                _currentReadoutMode = actualMode;
 
                 if (wasCapturing)
                     StartCapture();
 
-                Console.WriteLine($"[INFO] Image mode set to: {ImageModesList[imageMode]}");
+                Console.WriteLine($"[INFO] Image mode set to: {EyeCam.Shared.Revealer.ReadoutModeList[actualMode]}");
                 return true;
             }
             catch (Exception ex)
@@ -1214,10 +1222,10 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         public List<string> ImageModesList => new()
         {
-            "11-bit High Speed Low Gain (Bright Scenes)",
-            "11-bit High Speed High Gain (Low Light)",
-            "12-bit Low Noise Mode (High Quality)",
-            "16-bit High Dynamic Range (High Contrast)"
+            EyeCam.Shared.Revealer.ReadoutModeList[0],  // 11位高速低增益
+            EyeCam.Shared.Revealer.ReadoutModeList[1],  // 11位高速高增益
+            EyeCam.Shared.Revealer.ReadoutModeList[6],  // 12位低噪声
+            EyeCam.Shared.Revealer.ReadoutModeList[7]   // 16位高动态
         };
 
         public bool SetCompositeMode(int mode)
@@ -1296,9 +1304,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
-        /// <summary>
-        /// 获取或设置风扇状态
-        /// </summary>
         public bool FanEnabled
         {
             get
@@ -1349,6 +1354,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
             get => 0;
             set => Console.WriteLine("[WARNING] Tint control not supported");
         }
+
+        public List<string> GainList => throw new NotImplementedException();
 
         #endregion
 
@@ -1420,23 +1427,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         #region 辅助方法
 
-        private void SetImageProcessingEnabled(ImageProcessingFeature feature, bool enabled)
-        {
-            if (_camera == null) return;
-
-            try
-            {
-                _camera.SetImageProcessingEnabled((int)feature, enabled);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WARNING] Failed to set image processing feature {feature}: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 处理相机异常并显示中文错误信息
-        /// </summary>
         private void HandleCameraException(Exception ex, string operation)
         {
             if (ex is CameraException cameraEx)
@@ -1449,13 +1439,9 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 Console.WriteLine($"[ERROR] {operation}失败: {ex.Message}");
             }
 
-            // 触发断开连接事件
             OnDisConnectState?.Invoke(false);
         }
 
-        /// <summary>
-        /// 下载GenICam XML配置文件（用于调试）
-        /// </summary>
         public bool DownloadGenICamXML(string filePath)
         {
             if (_camera == null)
@@ -1475,18 +1461,5 @@ namespace Simscop.Spindisk.Hardware.Revealer
         }
 
         #endregion
-    }
-
-    /// <summary>
-    /// 图像处理功能枚举
-    /// </summary>
-    public enum ImageProcessingFeature
-    {
-        Brightness = 0,    // 亮度
-        Contrast = 1,      // 对比度
-        Gamma = 2,         // Gamma
-        PseudoColor = 3,   // 伪彩
-        Rotation = 4,      // 旋转
-        Flip = 5           // 翻转
     }
 }

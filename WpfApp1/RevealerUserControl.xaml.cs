@@ -165,7 +165,8 @@ namespace WpfApp1
                 "ContrastTextBox" => Math.Clamp(value, 0, 100),
                 "GammaTextBox" => Math.Clamp(value, 0, 100),
                 "ExposureTextBox" => Math.Clamp(value, VM!.ExposureRangeMin, VM.ExposureRangeMax),
-                "LeftLevelTextBox" or "RightLevelTextbox" => Math.Clamp(value, VM!.LevelRangeMin, VM.LevelRangeMax),
+                "LeftLevelTextBox" or "RightLevelTextBox" => Math.Clamp(value, VM!.LevelRangeMin, VM.LevelRangeMax),
+                "FrameRateLimit" => Math.Clamp(value, 0, VM!.FrameRate),
                 _ => value
             };
 

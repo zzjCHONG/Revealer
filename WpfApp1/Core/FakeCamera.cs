@@ -137,6 +137,11 @@ namespace Simscop.Spindisk.Core.FakeHardware
             "Mode7"
         };
 
+        public List<string> PseudoColorList => new() { "伪彩1","伪彩2"};
+
+        public bool FrameRateEnable { get; set ; }=true;
+        public double FrameRateLimit { get; set; } = 0;
+
         public bool SetCompositeMode(int mode) => true;
 
 

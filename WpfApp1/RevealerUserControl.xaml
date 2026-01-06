@@ -261,7 +261,7 @@
                             </ToggleButton>
 
                             <TextBox
-                                x:Name="RightLevelTextbox"
+                                x:Name="RightLevelTextBox"
                                 Width="60"
                                 Margin="5,0"
                                 DockPanel.Dock="Right"
@@ -271,7 +271,7 @@
                                 ToolTip="右色阶，Enter确认输入" />
 
                             <TextBox
-                                x:Name="LeftLevelTextbox"
+                                x:Name="LeftLevelTextBox"
                                 Width="60"
                                 Margin="0,0,5,0"
                                 DockPanel.Dock="Left"
@@ -316,18 +316,21 @@
                             SelectedIndex="{Binding ImageModeIndex}" />
                     </GroupBox>
 
-                    <GroupBox Header="增益选择">
-                        <ComboBox
-                            x:Name="GainComboBox"
-                            ItemsSource="{Binding GainList}"
-                            SelectedIndex="{Binding GainIndex}" />
-                    </GroupBox>
-
-                    <GroupBox Header="伪彩" IsEnabled="True">
+                    <GroupBox
+                        Header="组合模式选择"
+                        IsEnabled="True"
+                        Visibility="Collapsed">
                         <ComboBox
                             x:Name="CompositeModeComboBox"
                             ItemsSource="{Binding CompositeModeList}"
                             SelectedIndex="{Binding CompositeModeIndex}" />
+                    </GroupBox>
+
+                    <GroupBox Header="伪彩" IsEnabled="True">
+                        <ComboBox
+                            x:Name="PseudoColorModeComboBox"
+                            ItemsSource="{Binding PseudoColorList}"
+                            SelectedIndex="{Binding PseudoColorIndex}" />
                     </GroupBox>
 
                     <GroupBox Header="图像旋转" IsEnabled="True">
@@ -420,49 +423,6 @@
 
                             </ToggleButton>
 
-                            <ToggleButton
-                                Grid.Column="2"
-                                Width="Auto"
-                                Margin="10,3,10,0"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Top"
-                                liftui:StatusSwitchElement.HideUncheckedElement="False"
-                                DockPanel.Dock="Left"
-                                Focusable="False"
-                                IsChecked="{Binding IsFlipVertical}"
-                                Style="{DynamicResource ToggleButtonCustom}">
-
-                                <liftui:StatusSwitchElement.CheckedElement>
-                                    <Border
-                                        Background="{DynamicResource PrimaryBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="5">
-                                        <Label
-                                            Height="32"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Content="垂直+水平翻转"
-                                            FontSize="13"
-                                            Foreground="White" />
-                                    </Border>
-                                </liftui:StatusSwitchElement.CheckedElement>
-
-                                <Border
-                                    Background="{DynamicResource RegionBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="5">
-                                    <Label
-                                        Height="32"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Content="垂直+水平翻转"
-                                        FontSize="13"
-                                        Foreground="{DynamicResource PrimaryTextBrush}" />
-                                </Border>
-
-                            </ToggleButton>
                         </DockPanel>
                     </GroupBox>
 
@@ -473,7 +433,66 @@
                                 VerticalAlignment="Center"
                                 Text="{Binding FrameRate, StringFormat={}{0:F2}}" />
 
-                            <Button
+                            <UniformGrid
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Columns="2">
+
+                                <TextBox
+                                    x:Name="FrameRateLimitTextBox"
+                                    Width="60"
+                                    HorizontalAlignment="Stretch"
+                                    DockPanel.Dock="Right"
+                                    KeyDown="TextBox_KeyDown"
+                                    Text="{Binding FrameRateLimit, StringFormat={}{0:F2}, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
+                                    ToolTip="Enter确认输入" />
+
+                                <ToggleButton
+                                    x:Name="FrameRateEnable"
+                                    Width="Auto"
+                                    Margin="10,0,10,0"
+                                    liftui:StatusSwitchElement.HideUncheckedElement="False"
+                                    DockPanel.Dock="Right"
+                                    Focusable="True"
+                                    IsChecked="{Binding FrameRateEnable}"
+                                    Style="{DynamicResource ToggleButtonCustom}">
+                                    <liftui:StatusSwitchElement.CheckedElement>
+                                        <Border
+                                            Background="{DynamicResource PrimaryBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="5">
+                                            <Label
+                                                Height="32"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Content="帧率使能"
+                                                FontSize="13"
+                                                Foreground="White" />
+                                        </Border>
+                                    </liftui:StatusSwitchElement.CheckedElement>
+
+                                    <Border
+                                        Background="{DynamicResource RegionBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="5">
+                                        <Label
+                                            Height="32"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Content="帧率使能"
+                                            FontSize="13"
+                                            Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </Border>
+
+                                </ToggleButton>
+                            </UniformGrid>
+
+
+
+
+                            <!--<Button
                                 Width="100"
                                 Height="32"
                                 HorizontalAlignment="Right"
@@ -481,7 +500,7 @@
                                 Command="{Binding ReconnectCommand}"
                                 Content="帧率使能"
                                 FontSize="13"
-                                IsEnabled="{Binding CanReconnect}" />
+                                IsEnabled="{Binding CanReconnect}" />-->
                         </DockPanel>
 
                     </GroupBox>
@@ -521,7 +540,7 @@
                         Command="{Binding RestoretoInitialSettingsCommand}"
                         Content="恢复初始设置"
                         FontSize="13"
-                        IsEnabled="{Binding IsStartAcquisition}" />
+                        IsEnabled="True" />
 
                     <ToggleButton
                         Grid.Column="1"
@@ -577,7 +596,7 @@
 
         <Border
             Grid.Column="1"
-            Margin="2,5"
+            Margin="2,5,5,5"
             BorderBrush="Black"
             BorderThickness="1"
             CornerRadius="8">

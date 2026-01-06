@@ -261,6 +261,24 @@ public interface ICamera
     /// </summary>
     public bool FreeDevice();
 
+    //------------------千眼狼相机重写---------------//
+
+    /// <summary>
+    /// 相机自带伪彩设置
+    /// </summary>
+    public List<string> PseudoColorList {  get; }
+
+    /// <summary>
+    /// 获取帧率限制状态
+    /// 可在可设置帧率范围内，设置固定帧率
+    /// </summary>
+    public bool FrameRateEnable { get; set; }
+
+    /// <summary>
+    /// 输入帧率限制数据（在开启帧率限制后生效）
+    /// </summary>
+    public double FrameRateLimit { get; set; }
+
 }
 
 public enum InfoEnum
