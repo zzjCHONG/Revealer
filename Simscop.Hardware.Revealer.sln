@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36121.58
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Simscop.Hardware.Revealer", "Simscop.Hardware.Revealer\Simscop.Hardware.Revealer.vcxproj", "{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfApp1", "WpfApp1\WpfApp1.csproj", "{A7C8808B-A9FE-481E-8C5F-1579A9909636}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Simscop.Hardware.Revealer.Share", "Simscop.Hardware.Revealer.Share\Simscop.Hardware.Revealer.Share.shproj", "{39B82574-2209-4D28-895D-A45D8833D519}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Debug|Any CPU.Build.0 = Debug|x64
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Debug|x64.ActiveCfg = Debug|x64
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Debug|x64.Build.0 = Debug|x64
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Debug|x86.ActiveCfg = Debug|Win32
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Debug|x86.Build.0 = Debug|Win32
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Release|Any CPU.ActiveCfg = Release|x64
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Release|Any CPU.Build.0 = Release|x64
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Release|x64.ActiveCfg = Release|x64
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Release|x64.Build.0 = Release|x64
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Release|x86.ActiveCfg = Release|Win32
+		{1FB23D2C-893A-42B8-BAAF-AEC11CFD750A}.Release|x86.Build.0 = Release|Win32
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Debug|x64.Build.0 = Debug|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Debug|x86.Build.0 = Debug|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Release|x64.ActiveCfg = Release|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Release|x64.Build.0 = Release|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Release|x86.ActiveCfg = Release|Any CPU
+		{A7C8808B-A9FE-481E-8C5F-1579A9909636}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BD46BC10-E6C7-4408-AA3B-86EE8BCCA469}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		Simscop.Hardware.Revealer.Share\Simscop.Hardware.Revealer.Share.projitems*{39b82574-2209-4d28-895d-a45d8833d519}*SharedItemsImports = 13
+		Simscop.Hardware.Revealer.Share\Simscop.Hardware.Revealer.Share.projitems*{a7c8808b-a9fe-481e-8c5f-1579a9909636}*SharedItemsImports = 5
+	EndGlobalSection
+EndGlobal

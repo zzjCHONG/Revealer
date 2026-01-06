@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>39b82574-2209-4d28-895d-a45d8833d519</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Simscop.Hardware.Revealer.Share</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Native\CameraErrorCode.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Native\NativeMethods.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Revealer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RevealerCamera.cs" />
+  </ItemGroup>
+</Project>
