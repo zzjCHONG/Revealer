@@ -161,9 +161,9 @@ namespace WpfApp1
             // 根据 TextBox 名称限制范围
             value = textBox.Name switch
             {
-                "BrightnessTextBox" => Math.Clamp(value, 20, 255),
-                "ContrastTextBox" => Math.Clamp(value, 0, 255),
-                "GammaTextBox" => Math.Clamp(value, 0, 255),
+                "BrightnessTextBox" => Math.Clamp(value, -100, 100),
+                "ContrastTextBox" => Math.Clamp(value, 0, 100),
+                "GammaTextBox" => Math.Clamp(value, 0, 100),
                 "ExposureTextBox" => Math.Clamp(value, VM!.ExposureRangeMin, VM.ExposureRangeMax),
                 "LeftLevelTextBox" or "RightLevelTextbox" => Math.Clamp(value, VM!.LevelRangeMin, VM.LevelRangeMax),
                 _ => value

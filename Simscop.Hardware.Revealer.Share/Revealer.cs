@@ -105,11 +105,14 @@ namespace EyeCam.Shared
         {
             EnsureInitialized();
 
-           var devices= EnumerateDevices();
+            var devices = EnumerateDevices();
+            if (devices.Count < 2) throw new Exception("无法检测出相机！");
 
-            int ret = NativeMethods.Camera_CreateHandle(out _handle, 1);
+            int ret = NativeMethods.Camera_CreateHandle(out _handle, deviceIndex);//检测出虚拟相机+真实相机，选用真实相机
             if (ret != 0 || _handle == IntPtr.Zero)
                 throw new CameraException(ret);
+
+            Console.WriteLine( _handle);
         }
 
         ~Revealer() => Dispose(false);
@@ -335,23 +338,6 @@ namespace EyeCam.Shared
         {
             CheckDisposed();
             int ret = NativeMethods.Camera_SetExportCacheSize(_handle, cacheSizeInByte);
-            if (ret != 0)
-                throw new CameraException(ret);
-        }
-
-        #endregion
-
-        #region ROI设置
-
-        /// <summary>设置ROI（感兴趣区域）</summary>
-        /// <param name="width">宽度</param>
-        /// <param name="height">高度</param>
-        /// <param name="offsetX">X偏移</param>
-        /// <param name="offsetY">Y偏移</param>
-        public void SetROI(long width, long height, long offsetX, long offsetY)
-        {
-            CheckDisposed();
-            int ret = NativeMethods.Camera_SetROI(_handle, width, height, offsetX, offsetY);
             if (ret != 0)
                 throw new CameraException(ret);
         }
@@ -770,57 +756,413 @@ namespace EyeCam.Shared
 
         #endregion
 
-        //#region 便捷属性封装（通过GenICam属性实现）
+        #region 便捷属性封装（通过GenICam属性实现）
 
-        ///// <summary>曝光时间（微秒）</summary>
-        //public double ExposureTime
-        //{
-        //    get => GetFloatFeature("ExposureTime");
-        //    set => SetFloatFeature("ExposureTime", value);
-        //}
+        // =================================================================
+        // 传感器信息（只读）
+        // =================================================================
 
-        ///// <summary>采集帧率（fps）</summary>
-        //public double AcquisitionFrameRate
-        //{
-        //    get => GetFloatFeature("AcquisitionFrameRate");
-        //    set => SetFloatFeature("AcquisitionFrameRate", value);
-        //}
+        /// <summary>传感器宽度（像素）- 只读</summary>
+        public long SensorWidth => GetIntFeature("SensorWidth");
 
-        ///// <summary>图像宽度</summary>
-        //public long Width
-        //{
-        //    get => GetIntFeature("Width");
-        //    set => SetIntFeature("Width", value);
-        //}
+        /// <summary>传感器高度（像素）- 只读</summary>
+        public long SensorHeight => GetIntFeature("SensorHeight");
 
-        ///// <summary>图像高度</summary>
-        //public long Height
-        //{
-        //    get => GetIntFeature("Height");
-        //    set => SetIntFeature("Height", value);
-        //}
+        // =================================================================
+        // 图像尺寸和偏移
+        // =================================================================
 
-        ///// <summary>X偏移</summary>
-        //public long OffsetX
-        //{
-        //    get => GetIntFeature("OffsetX");
-        //    set => SetIntFeature("OffsetX", value);
-        //}
+        /// <summary>图像宽度（像素）</summary>
+        /// <remarks>注意：会影响OffsetX、AcquisitionFrameRate等属性</remarks>
+        public long Width
+        {
+            get => GetIntFeature("Width");
+            set => SetIntFeature("Width", value);
+        }
 
-        ///// <summary>Y偏移</summary>
-        //public long OffsetY
-        //{
-        //    get => GetIntFeature("OffsetY");
-        //    set => SetIntFeature("OffsetY", value);
-        //}
+        /// <summary>图像高度（像素）</summary>
+        /// <remarks>注意：会影响OffsetY、AcquisitionFrameRate等属性</remarks>
+        public long Height
+        {
+            get => GetIntFeature("Height");
+            set => SetIntFeature("Height", value);
+        }
 
-        ///// <summary>发送软件触发</summary>
-        //public void SoftwareTrigger()
-        //{
-        //    ExecuteCommand("TriggerSoftware");
-        //}
+        /// <summary>X偏移（ROI起始X坐标）</summary>
+        /// <remarks>注意：会影响Width、AcquisitionFrameRate等属性</remarks>
+        public long OffsetX
+        {
+            get => GetIntFeature("OffsetX");
+            set => SetIntFeature("OffsetX", value);
+        }
 
-        //#endregion
+        /// <summary>Y偏移（ROI起始Y坐标）</summary>
+        /// <remarks>注意：会影响Height、AcquisitionFrameRate等属性</remarks>
+        public long OffsetY
+        {
+            get => GetIntFeature("OffsetY");
+            set => SetIntFeature("OffsetY", value);
+        }
+
+        // =================================================================
+        // 像素格式
+        // =================================================================
+
+        /// <summary>像素格式</summary>
+        /// <remarks>
+        /// 常用格式：
+        /// 17825797 = Mono12  (12位单色)
+        /// 17563719 = Mono12p (12位压缩)
+        /// 17825799 = Mono16  (16位单色)
+        /// 注意：采集时不可更改，影响数据大小和帧率
+        /// </remarks>
+        public ulong PixelFormat
+        {
+            get => GetEnumFeature("PixelFormat");
+            set => SetEnumFeature("PixelFormat", value);
+        }
+
+        /// <summary>获取像素格式的符号名</summary>
+        public string PixelFormatSymbol
+        {
+            get => GetEnumFeatureSymbol("PixelFormat");
+            set => SetEnumFeatureSymbol("PixelFormat", value);
+        }
+
+        // =================================================================
+        // 读出模式和合并模式
+        // =================================================================
+
+        /// <summary>读出模式</summary>
+        /// <remarks>
+        /// 0 = bit11_HS_Low    - 11位高速低增益（适合明亮场景）
+        /// 1 = bit11_HS_High   - 11位高速高增益（适合弱光场景）
+        /// 6 = bit12_CMS       - 12位低噪声模式（高质量）
+        /// 7 = bit16_From11    - 16位高动态范围（高对比度场景）
+        /// </remarks>
+        public ulong ReadoutMode
+        {
+            get => GetEnumFeature("ReadoutMode");
+            set => SetEnumFeature("ReadoutMode", value);
+        }
+
+        /// <summary>合并模式（Binning）</summary>
+        /// <remarks>
+        /// 0 = OneByOne (1x1)    - 无合并，全分辨率
+        /// 1 = TwoByTwo (2x2)    - 2x2合并，1/4分辨率，4倍亮度
+        /// 2 = FourByFour (4x4)  - 4x4合并，1/16分辨率，16倍亮度
+        /// 注意：会改变Width、Height、OffsetX、OffsetY，停止采集后才能更改
+        /// </remarks>
+        public ulong BinningMode
+        {
+            get => GetEnumFeature("BinningMode");
+            set => SetEnumFeature("BinningMode", value);
+        }
+
+        // =================================================================
+        // 曝光和帧率
+        // =================================================================
+
+        /// <summary>曝光时间（微秒）</summary>
+        /// <remarks>
+        /// 影响因素：
+        /// - 图像亮度：时间越长越亮
+        /// - 运动模糊：时间越长运动物体越模糊
+        /// - 帧率：时间越长帧率越低
+        /// 最大帧率 = 1 / (曝光时间 + 读出时间)
+        /// </remarks>
+        public double ExposureTime
+        {
+            get => GetFloatFeature("ExposureTime");
+            set => SetFloatFeature("ExposureTime", value);
+        }
+
+        /// <summary>采集帧率（fps）</summary>
+        /// <remarks>
+        /// 帧率限制因素：
+        /// 1. 曝光时间：必须 < 1/帧率
+        /// 2. ROI大小：ROI越大读出时间越长
+        /// 3. 接口带宽：USB3或CXP带宽限制
+        /// 4. 像素格式：格式不同数据量不同
+        /// 使用前需启用FrameRateEnable
+        /// </remarks>
+        public double AcquisitionFrameRate
+        {
+            get => GetFloatFeature("AcquisitionFrameRate");
+            set => SetFloatFeature("AcquisitionFrameRate", value);
+        }
+
+        /// <summary>获取最大可用帧率</summary>
+        public double MaxAcquisitionFrameRate => GetFloatFeatureMax("AcquisitionFrameRate");
+
+        /// <summary>帧率使能</summary>
+        /// <remarks>
+        /// False = 禁用帧率控制，最大速度采集
+        /// True  = 启用帧率控制，按设定帧率采集
+        /// </remarks>
+        public bool FrameRateEnable
+        {
+            get => GetEnumFeature("FrameRateEnable") != 0;
+            set => SetEnumFeature("FrameRateEnable", value ? 1u : 0u);
+        }
+
+        // =================================================================
+        // 触发控制
+        // =================================================================
+
+        /// <summary>触发输入类型</summary>
+        /// <remarks>
+        /// 0 = Off (关闭)
+        /// 1 = External_Edge_Trigger (外部边缘触发)
+        /// 2 = External_Start_Trigger (外部开始触发)
+        /// 3 = External_Level_Trigger (外部电平触发)
+        /// 4 = Synchronous_Readout (同步读出)
+        /// 5 = Software_Trigger (软件触发)
+        /// </remarks>
+        public ulong TriggerInType
+        {
+            get => GetEnumFeature("TriggerInType");
+            set => SetEnumFeature("TriggerInType", value);
+        }
+
+        /// <summary>触发激活方式</summary>
+        /// <remarks>
+        /// 0 = RisingEdge  (上升沿)
+        /// 1 = FallingEdge (下降沿)
+        /// 2 = LevelHigh   (高电平)
+        /// 3 = LevelLow    (低电平)
+        /// 与TriggerInType必须兼容
+        /// </remarks>
+        public ulong TriggerActivation
+        {
+            get => GetEnumFeature("TriggerActivation");
+            set => SetEnumFeature("TriggerActivation", value);
+        }
+
+        /// <summary>触发延迟（微秒）</summary>
+        /// <remarks>从触发信号到开始曝光的延迟</remarks>
+        public double TriggerDelay
+        {
+            get => GetFloatFeature("TriggerDelay");
+            set => SetFloatFeature("TriggerDelay", value);
+        }
+
+        /// <summary>发送软件触发</summary>
+        /// <remarks>
+        /// 前提条件：
+        /// - TriggerInType必须设置为Software_Trigger (5)
+        /// - 必须已经StartGrabbing
+        /// </remarks>
+        public void SoftwareTrigger()
+        {
+            ExecuteCommand("TriggerSoftware");
+        }
+
+        // =================================================================
+        // 触发输出（用于同步其他设备）
+        // =================================================================
+
+        /// <summary>触发输出端口选择器</summary>
+        /// <remarks>
+        /// 1 = TriggerOut1
+        /// 2 = TriggerOut2
+        /// 3 = TriggerOut3
+        /// </remarks>
+        public ulong TriggerOutSelector
+        {
+            get => GetEnumFeature("TriggerOutSelector");
+            set => SetEnumFeature("TriggerOutSelector", value);
+        }
+
+        /// <summary>触发输出信号类型</summary>
+        /// <remarks>
+        /// 0 = Exposure_Start    (曝光开始)
+        /// 1 = VSYNC             (第一行读出结束)
+        /// 2 = Readout_End       (读出结束)
+        /// 3 = Trigger_Ready     (触发就绪)
+        /// 4 = Global_Exposure   (全局曝光)
+        /// 5 = High              (恒定高电平)
+        /// 6 = Low               (恒定低电平)
+        /// </remarks>
+        public ulong TriggerOutType
+        {
+            get => GetEnumFeature("TriggerOutType");
+            set => SetEnumFeature("TriggerOutType", value);
+        }
+
+        /// <summary>触发输出激活方式</summary>
+        /// <remarks>
+        /// 0 = RisingEdge  (上升沿)
+        /// 1 = FallingEdge (下降沿)
+        /// 2 = LevelHigh   (高电平)
+        /// 3 = LevelLow    (低电平)
+        /// 与TriggerOutType必须兼容
+        /// </remarks>
+        public ulong TriggerOutActivation
+        {
+            get => GetEnumFeature("TriggerOutActivation");
+            set => SetEnumFeature("TriggerOutActivation", value);
+        }
+
+        /// <summary>触发输出延迟（微秒）</summary>
+        /// <remarks>从事件发生到输出信号的延迟</remarks>
+        public double TriggerOutDelay
+        {
+            get => GetFloatFeature("TriggerOutDelay");
+            set => SetFloatFeature("TriggerOutDelay", value);
+        }
+
+        /// <summary>触发输出脉冲宽度（微秒）</summary>
+        /// <remarks>仅对边缘触发信号有效</remarks>
+        public double TriggerOutPulseWidth
+        {
+            get => GetFloatFeature("TriggerOutPulseWidth");
+            set => SetFloatFeature("TriggerOutPulseWidth", value);
+        }
+
+        // =================================================================
+        // 设备控制（温度和风扇）
+        // =================================================================
+
+        /// <summary>设备温度（摄氏度）- 只读</summary>
+        /// <remarks>
+        /// 正常工作温度：通常 -10℃ 到 50℃
+        /// 过高会影响图像质量和器件寿命
+        /// </remarks>
+        public float DeviceTemperature
+        {
+            get => (float)GetFloatFeature("DeviceTemperature");
+        }
+
+        /// <summary>目标温度（摄氏度）</summary>
+        /// <remarks>
+        /// 制冷功能：降低暗电流、提高信噪比、减少热噪声
+        /// 范围：取决于相机型号，通常 -30℃ 到 25℃
+        /// 目标温度越低，功耗越大，需要良好的散热条件
+        /// </remarks>
+        public long DeviceTemperatureTarget
+        {
+            get => GetIntFeature("DeviceTemperatureTarget");
+            set => SetIntFeature("DeviceTemperatureTarget", value);
+        }
+
+        /// <summary>风扇开关</summary>
+        /// <remarks>
+        /// True = 开启风扇（长时间工作、低温制冷时必须开启）
+        /// False = 关闭风扇（注意监控温度，防止过热）
+        /// </remarks>
+        public bool FanSwitch
+        {
+            get => GetBoolFeature("FanSwitch");
+            set => SetBoolFeature("FanSwitch", value);
+        }
+
+        /// <summary>风扇模式</summary>
+        /// <remarks>
+        /// 可能的模式：自动、全速、安静
+        /// 具体枚举值请参考相机文档
+        /// </remarks>
+        public ulong FanMode
+        {
+            get => GetEnumFeature("FanMode");
+            set => SetEnumFeature("FanMode", value);
+        }
+
+        // =================================================================
+        // 便捷方法
+        // =================================================================
+
+        /// <summary>设置完整ROI（一次性设置所有参数）</summary>
+        /// <param name="width">宽度</param>
+        /// <param name="height">高度</param>
+        /// <param name="offsetX">X偏移</param>
+        /// <param name="offsetY">Y偏移</param>
+        /// <remarks>
+        /// ROI说明：
+        /// - 减小ROI可以提高帧率
+        /// - ROI必须在传感器范围内
+        /// - OffsetX + Width <= SensorWidth
+        /// - OffsetY + Height <= SensorHeight
+        /// 
+        /// 使用建议：
+        /// - 先停止采集
+        /// - 调用SetROI
+        /// - 重新读取实际值（可能被调整）
+        /// - 开始采集
+        /// </remarks>
+        public void SetROI(long width, long height, long offsetX, long offsetY)
+        {
+            CheckDisposed();
+            int ret = NativeMethods.Camera_SetROI(_handle, width, height, offsetX, offsetY);
+            if (ret != 0)
+                throw new CameraException(ret);
+        }
+
+        /// <summary>获取当前ROI设置</summary>
+        public (long Width, long Height, long OffsetX, long OffsetY) GetROI()
+        {
+            return (Width, Height, OffsetX, OffsetY);
+        }
+
+        /// <summary>重置ROI为最大值（全传感器区域）</summary>
+        public void ResetROI()
+        {
+            SetROI(SensorWidth, SensorHeight, 0, 0);
+        }
+
+        /// <summary>配置软件触发模式</summary>
+        /// <remarks>
+        /// 使用流程：
+        /// 1. ConfigureSoftwareTrigger()
+        /// 2. StartGrabbing()
+        /// 3. SoftwareTrigger() - 触发一帧
+        /// 4. GetFrame() - 获取图像
+        /// 5. 重复3-4
+        /// </remarks>
+        public void ConfigureSoftwareTrigger()
+        {
+            TriggerInType = 5; // Software_Trigger
+        }
+
+        /// <summary>配置连续采集模式（关闭触发）</summary>
+        public void ConfigureContinuousMode()
+        {
+            TriggerInType = 0; // Off
+        }
+
+        /// <summary>配置外部触发模式</summary>
+        /// <param name="edgeType">0=上升沿, 1=下降沿</param>
+        public void ConfigureExternalTrigger(int edgeType = 0)
+        {
+            TriggerInType = 1; // External_Edge_Trigger
+            TriggerActivation = (ulong)edgeType; // 0=RisingEdge, 1=FallingEdge
+        }
+
+        /// <summary>获取属性的取值范围</summary>
+        /// <param name="featureName">属性名</param>
+        /// <returns>(最小值, 最大值, 步长)</returns>
+        public (long Min, long Max, long Inc) GetIntFeatureRange(string featureName)
+        {
+            return (
+                GetIntFeatureMin(featureName),
+                GetIntFeatureMax(featureName),
+                GetIntFeatureInc(featureName)
+            );
+        }
+
+        /// <summary>获取浮点属性的取值范围</summary>
+        /// <param name="featureName">属性名</param>
+        /// <returns>(最小值, 最大值, 步长)</returns>
+        public (double Min, double Max, double Inc) GetFloatFeatureRange(string featureName)
+        {
+            return (
+                GetFloatFeatureMin(featureName),
+                GetFloatFeatureMax(featureName),
+                GetFloatFeatureInc(featureName)
+            );
+        }
+
+        #endregion
 
         #region 私有方法
 
