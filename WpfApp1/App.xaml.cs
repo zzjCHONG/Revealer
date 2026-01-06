@@ -1,6 +1,4 @@
 ﻿using EyeCam.Shared.Native;
-using System.Configuration;
-using System.Data;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;

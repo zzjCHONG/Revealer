@@ -88,13 +88,8 @@ static void SC_CALL OnConnectCallback(const SC_SConnectArg* pConnectArg, void* p
         ConnectCallBack callback = reinterpret_cast<ConnectCallBack>(it->second.userCallback);
         if (callback)
         {
-            // 根据SC_EVType判断连接状态
-            // eOffLine = 0 (离线), eOnLine = 1 (在线)
             int isConnected = (pConnectArg->event == eOnLine) ? 1 : 0;
-
-            // 使用序列号作为设备标识
             const char* deviceId = pConnectArg->serialNumber;
-
             callback(isConnected, deviceId, it->second.userData);
         }
     }
@@ -1520,17 +1515,20 @@ REVEALER_API ErrorCode Camera_ExecuteCommandFeature(CameraHandle handle, const c
 /// </remarks>
 REVEALER_API ErrorCode Camera_SubscribeConnectArg(CameraHandle handle, ConnectCallBack proc, void* pUser)
 {
-    SC_DEV_HANDLE sdkHandle = GetSDKHandle(handle);
-    if (!sdkHandle || !proc) return -1;
+    if (!proc) return -1;
 
-    // 保存用户回调信息
+    // ? 连接状态回调是全局的，不需要设备句柄
+    // ? 直接传 nullptr 给 SDK
+
+    // 保存用户回调信息（使用特殊的handle标识，如nullptr或(CameraHandle)-1）
+    CameraHandle globalHandle = (CameraHandle)(intptr_t)-1; // 使用特殊值表示全局回调
     CallbackInfo info;
     info.userCallback = reinterpret_cast<void*>(proc);
     info.userData = pUser;
-    g_connectCallbackMap[handle] = info;
+    g_connectCallbackMap[globalHandle] = info;
 
-    // 注册SDK回调，传递handle作为用户数据
-    return SC_SubscribeConnectArg(sdkHandle, OnConnectCallback, handle);
+    // ? 注册SDK回调，第一个参数传 nullptr
+    return SC_SubscribeConnectArg(nullptr, OnConnectCallback, (void*)globalHandle);
 }
 
 /// <summary>

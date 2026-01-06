@@ -29,7 +29,7 @@ namespace WpfApp1
         {
             _camera = new RevealerCamera();
 
-            _timer = new System.Timers.Timer(300);
+            _timer = new System.Timers.Timer(3000);
             _timer.Elapsed += OnTimerElapsed!;
 
             _camera.FrameReceived += img =>
@@ -220,7 +220,7 @@ namespace WpfApp1
         void Init()
         {
             IsConnected = _camera!.Init();
-            if (IsConnected) _timer!.Start();
+            //if (IsConnected) _timer!.Start();
             Debug.WriteLine("Init_" + IsConnected);
             InitSetting();
         }
@@ -498,7 +498,7 @@ namespace WpfApp1
             if (width > 0 && height > 0)
             {
                 //WeakReferenceMessenger.Default.Send(new ResolutionChangeControlScaleMessage(width, height));
-                Console.WriteLine($"[TUCamViewModel] 分辨率切换: {width}x{height}");
+                Console.WriteLine($"[RevealerCamViewModel] 分辨率切换: {width}x{height}");
             }
 
             Application.Current.Dispatcher.Invoke(() =>

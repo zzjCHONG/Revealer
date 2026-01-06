@@ -640,6 +640,88 @@ namespace EyeCam.Shared
 
         #region 回调注册（异步采集）
 
+        /// <summary>注册设备连接状态回调函数</summary>
+        /// <param name="callback">回调函数，参数为 (isConnected, cameraKey)</param>
+        public void AttachConnectCallback(Action<bool, string> callback)
+        {
+            CheckDisposed();
+
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
+            // 创建委托并保持引用（防止GC）
+            _connectCallback = (int isConnected, string cameraKey, IntPtr pUser) =>
+            {
+                try
+                {
+                    bool connected = isConnected != 0;
+                    callback(connected, cameraKey);
+                }
+                catch (Exception ex)
+                {
+                    // 回调中的异常需要记录，避免崩溃
+                    System.Diagnostics.Debug.WriteLine($"连接状态回调异常: {ex.Message}");
+                }
+            };
+
+            int ret = NativeMethods.Camera_SubscribeConnectArg(_handle, _connectCallback, IntPtr.Zero);
+            if (ret != 0)
+                throw new CameraException(ret);
+        }
+
+        /// <summary>注册参数更新回调函数</summary>
+        /// <param name="callback">回调函数，参数为属性名</param>
+        public void AttachParamUpdateCallback(Action<string> callback)
+        {
+            CheckDisposed();
+
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
+            _paramUpdateCallback = (string featureName, IntPtr pUser) =>
+            {
+                try
+                {
+                    callback(featureName);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"参数更新回调异常: {ex.Message}");
+                }
+            };
+
+            int ret = NativeMethods.Camera_SubscribeParamUpdateArg(_handle, _paramUpdateCallback, IntPtr.Zero);
+            if (ret != 0)
+                throw new CameraException(ret);
+        }
+
+        /// <summary>注册导出状态回调函数</summary>
+        /// 录像功能，不注册实现
+        /// <param name="callback">回调函数，参数为 (status, progress)</param>
+        public void AttachExportCallback(Action<int, int> callback)
+        {
+            CheckDisposed();
+
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
+            _exportCallback = (int status, int progress, IntPtr pUser) =>
+            {
+                try
+                {
+                    callback(status, progress);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"导出状态回调异常: {ex.Message}");
+                }
+            };
+
+            int ret = NativeMethods.Camera_SubscribeExportNotify(_handle, _exportCallback, IntPtr.Zero);
+            if (ret != 0)
+                throw new CameraException(ret);
+        }
+
         /// <summary>注册处理后图像数据回调函数（异步）</summary>
         /// <param name="callback">回调函数</param>
         /// <remarks>与 GetProcessedFrame 互斥，只能选其一</remarks>

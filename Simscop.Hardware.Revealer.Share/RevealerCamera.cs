@@ -78,6 +78,12 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 _camera = new EyeCam.Shared.Revealer(_deviceIndex);
                 _camera.Open();
 
+                //注册连接状态回调
+                _camera.AttachConnectCallback(OnConnectionStateChanged);
+
+                //注册参数更新回调
+                _camera.AttachParamUpdateCallback(OnParameterUpdated);
+
                 // 获取设备信息
                 var deviceInfo = _camera.GetDeviceInfo();
                 Console.WriteLine($"[INFO] Camera opened: {deviceInfo.ModelName} (SN: {deviceInfo.SerialNumber})");
@@ -92,6 +98,69 @@ namespace Simscop.Spindisk.Hardware.Revealer
             {
                 HandleCameraException(ex, "相机初始化");
                 return false;
+            }
+        }
+
+        // ✨ 添加参数更新处理方法
+        private void OnParameterUpdated(string featureName)
+        {
+            try
+            {
+                Console.WriteLine($"[INFO] Parameter updated: {featureName}");
+
+                // 可以在这里处理参数变化
+                // 例如：当Width变化时，自动更新其他相关参数
+                switch (featureName)
+                {
+                    case "Width":
+                    case "Height":
+                        // 图像尺寸变化，可能影响帧率
+                        Console.WriteLine($"[INFO] Image size changed, current: {ImageSize.Width}x{ImageSize.Height}");
+                        break;
+                    case "OffsetX":
+                    case "OffsetY":
+                        // ROI偏移变化
+                        Console.WriteLine($"[INFO] ROI offset changed");
+                        break;
+                    case "AcquisitionFrameRate":
+                        // 帧率变化（注意：此参数可能不会触发回调）
+                        Console.WriteLine($"[INFO] Frame rate changed: {FrameRate:F2} fps");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Parameter update callback exception: {ex.Message}");
+            }
+        }
+
+        private void OnConnectionStateChanged(bool isConnected, string cameraKey)
+        {
+            try
+            {
+                Console.WriteLine($"[INFO] Camera connection state changed: {(isConnected ? "Connected" : "Disconnected")} (Key: {cameraKey})");
+
+                if (!isConnected)
+                {
+                    Console.WriteLine("[WARNING] Camera disconnected!");
+
+                    if (_isCapturing)
+                    {
+                        _isCapturing = false;
+                        _fpsStopwatch.Stop();
+                    }
+
+                    OnDisConnectState?.Invoke(false);
+                }
+                else
+                {
+                    Console.WriteLine("[INFO] Camera reconnected!");
+                    OnDisConnectState?.Invoke(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Connection state callback exception: {ex.Message}");
             }
         }
 
@@ -1096,6 +1165,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         public bool SetResolution(int resolution)
         {
+            if (_camera == null) return false;
+
             if (resolution < 0 || resolution >= EyeCam.Shared.Revealer.BinningModeList.Count)
                 return false;
 
@@ -1438,8 +1509,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
             {
                 Console.WriteLine($"[ERROR] {operation}失败: {ex.Message}");
             }
-
-            OnDisConnectState?.Invoke(false);
         }
 
         public bool DownloadGenICamXML(string filePath)

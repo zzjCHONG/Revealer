@@ -390,6 +390,18 @@ namespace EyeCam.Shared.Native
         [UnmanagedFunctionPointer(Convention)]
         public delegate void FrameCallBackDelegate(ref ImageData pImage, IntPtr pUser);
 
+        /// <summary>设备连接状态事件回调注册</summary>
+        [DllImport(DllName, CallingConvention = Convention, CharSet = CharSet.Ansi)]
+        public static extern int Camera_SubscribeConnectArg(IntPtr handle, ConnectCallBackDelegate proc, IntPtr pUser);
+
+        /// <summary>参数更新事件回调注册</summary>
+        [DllImport(DllName, CallingConvention = Convention, CharSet = CharSet.Ansi)]
+        public static extern int Camera_SubscribeParamUpdateArg(IntPtr handle, ParamUpdateCallBackDelegate proc, IntPtr pUser);
+
+        /// <summary>导出状态回调注册</summary>
+        [DllImport(DllName, CallingConvention = Convention)]
+        public static extern int Camera_SubscribeExportNotify(IntPtr handle, ExportEventCallBackDelegate proc, IntPtr pUser);
+
         #endregion
 
         #region 5.8 其他功能
