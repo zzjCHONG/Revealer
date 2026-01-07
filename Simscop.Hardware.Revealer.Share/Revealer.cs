@@ -145,12 +145,26 @@ namespace EyeCam.Shared
         /// </summary>
         public static readonly Dictionary<string, int> PixelFormatMap = new()
         {
-            ["Mono8"] = 0x01080001,
-            ["Mono10"] = 0x01100005,
-            ["Mono12"] = 0x010C0047,
-            ["Mono16"] = 0x01100003,
-            ["RGB8"] = 0x02180014,
-            ["BGR8"] = 0x02180015
+            // 单色格式 (Mono)
+            ["Mono8"] = 0x01080001,  // 8位单色  (17301505)
+            ["Mono10"] = 0x01100003,  // 10位单色 (17891331) - unpacked
+            ["Mono12"] = 0x01100005,  // 12位单色 (17891333) - unpacked
+            ["Mono12p"] = 0x010C0047,  // 12位单色 (17498183) - packed
+            ["Mono16"] = 0x01100007,  // 16位单色 (17825799) ✅ 修正
+
+            // 彩色格式 (RGB/BGR)
+            ["RGB8"] = 0x02180014,  // 24位RGB (35389460)
+            ["BGR8"] = 0x02180015,  // 24位BGR (35389461)
+
+            // Bayer格式（常用于彩色相机）
+            ["BayerGR8"] = 0x01080008,  // Bayer GR 8位
+            ["BayerRG8"] = 0x01080009,  // Bayer RG 8位
+            ["BayerGB8"] = 0x0108000A,  // Bayer GB 8位
+            ["BayerBG8"] = 0x0108000B,  // Bayer BG 8位
+            ["BayerGR12"] = 0x01100010,  // Bayer GR 12位
+            ["BayerRG12"] = 0x01100011,  // Bayer RG 12位
+            ["BayerGB12"] = 0x01100012,  // Bayer GB 12位
+            ["BayerBG12"] = 0x01100013,  // Bayer BG 12位
         };
 
         /// <summary>

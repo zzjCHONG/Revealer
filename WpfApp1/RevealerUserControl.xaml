@@ -590,7 +590,8 @@
                 Margin="2"
                 HorizontalAlignment="Stretch"
                 Command="{Binding InitCommand}"
-                Content="Connect" />
+                Content="Connect"
+                IsEnabled="{Binding IsOperable}" />
 
         </StackPanel>
 

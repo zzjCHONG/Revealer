@@ -101,7 +101,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
-        // ✨ 添加参数更新处理方法
         private void OnParameterUpdated(string featureName)
         {
             try
@@ -309,8 +308,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
             try
             {
-                // 设置缓冲区数量
-                _camera.SetBufferCount(5);
+                //// 设置缓冲区数量
+                //_camera.SetBufferCount(10);
 
                 // 注册帧回调
                 _camera.AttachProcessedGrabbing(OnFrameCallback);
@@ -362,6 +361,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         private void OnFrameCallback(ImageFrame frame)
         {
+            Debug.WriteLine($"{DateTime.Now:HH-mm-ss-fff}_{frame.BlockId}");
+
             try
             {
                 Mat? mat = ConvertFrameToMat(frame);

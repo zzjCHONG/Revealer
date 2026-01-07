@@ -82,18 +82,18 @@ namespace WpfApp1
 
             FrameRateLimit = _camera.FrameRateLimit;
 
+            ROIIndex = 0;
+            preRoiIndex = ROIIndex;
             ResolutionIndex = 0;
             PseudoColorIndex = 0;
-            //ImageModeIndex = 1;
             CompositeModeIndex = 0;
             IsFlipHorizontal = false;
             IsFlipVertical = false;
             IsAutoExposure = false;
-            //IsAutoLevel = true;//相机在开启采集后才能正确开启该设置
-            ROIIndex = 0;
 
-            Exposure = 50;
-            preRoiIndex = ROIIndex;
+            Exposure = 10;
+            //ImageModeIndex = 1;
+            //IsAutoLevel = true;//相机在开启采集后才能正确开启该设置
         }
 
         private void OnTimerElapsed(object sender, ElapsedEventArgs e)
@@ -106,7 +106,7 @@ namespace WpfApp1
             RightLevel = _camera.CurrentLevel.Right;
 
             FrameRate = _camera!.FrameRate;
-            FrameRateLimit=_camera!.FrameRateLimit;
+            FrameRateLimit = _camera!.FrameRateLimit;
             IsAutoLevel = _camera!.IsAutoLevel;
         }
 
@@ -195,6 +195,7 @@ namespace WpfApp1
         private int _compositeModeIndex = -1;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsOperable))]
         private bool isConnected;
 
         [ObservableProperty]
@@ -216,13 +217,18 @@ namespace WpfApp1
             _camera!.FrameRateEnable = value;
         }
 
+        public bool IsOperable => !IsConnected;
+
         [RelayCommand]
         void Init()
         {
             IsConnected = _camera!.Init();
-            //if (IsConnected) _timer!.Start();
+            if (IsConnected)
+            {
+                _timer!.Start();
+                InitSetting();
+            }
             Debug.WriteLine("Init_" + IsConnected);
-            InitSetting();
         }
 
         [RelayCommand]
