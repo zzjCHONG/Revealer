@@ -359,13 +359,11 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
-        private void OnFrameCallback(ImageFrame frame)
+        private void OnFrameCallback(Mat mat) // ✅ 参数改为 Mat
         {
-            //Debug.WriteLine($"{DateTime.Now:HH-mm-ss-fff}_{frame.BlockId}");
-
             try
             {
-                Mat? mat = ConvertFrameToMat(frame);
+                // ✅ 直接使用Mat，无需转换
                 if (mat == null || mat.Empty())
                     return;
 
@@ -381,14 +379,14 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 // 计算FPS
                 _frameCount++;
-                if (_fpsStopwatch.Elapsed.TotalSeconds >= 2.0)
+                if (_fpsStopwatch.Elapsed.TotalSeconds >= 3.0)
                 {
                     _calculatedFps = _frameCount / _fpsStopwatch.Elapsed.TotalSeconds;
                     _frameCount = 0;
                     _fpsStopwatch.Restart();
                 }
 
-                mat.Dispose();
+                // ✅ 注意：mat会在Revealer的回调中自动释放，这里不需要手动释放
             }
             catch (Exception ex)
             {
@@ -431,9 +429,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     // 发送软件触发
                     _camera.SoftwareTrigger();
 
-                    // 获取帧（带超时）
-                    var frame = _camera.GetProcessedFrame(5000);
-                    img = ConvertFrameToMat(frame);
+                    // ✅ 直接获取Mat（带超时）
+                    img = _camera.GetProcessedFrame(5000);
 
                     // 停止采集
                     _camera.StopGrabbing();
@@ -459,72 +456,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     return mat;
                 return null;
             });
-        }
-
-        /// <summary>
-        /// 将ImageFrame转换为OpenCV Mat
-        /// </summary>
-        private static Mat? ConvertFrameToMat(ImageFrame frame)
-        {
-            if (frame == null || frame.Data == null || frame.Data.Length == 0)
-                return null;
-
-            Mat? mat = null;
-            try
-            {
-                // 根据像素格式确定Mat类型
-                (MatType matType, int depth, int channels) = GetMatTypeFromPixelFormat(frame.PixelFormat);
-
-                // 创建Mat
-                mat = new Mat(frame.Height, frame.Width, matType);
-
-                // 验证数据大小
-                int expectedSize = frame.Height * frame.Width * channels * (depth / 8);
-                int actualSize = Math.Min(frame.DataSize, frame.Data.Length);
-
-                if (actualSize < expectedSize)
-                {
-                    Console.WriteLine($"[WARNING] Data size mismatch: expected {expectedSize}, got {actualSize}");
-                }
-
-                // 复制数据到Mat
-                Marshal.Copy(frame.Data, 0, mat.Data, Math.Min(expectedSize, actualSize));
-
-                return mat;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] Frame conversion failed: {ex.Message}");
-                mat?.Dispose();
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// 根据像素格式获取Mat类型
-        /// </summary>
-        private static (MatType matType, int depth, int channels) GetMatTypeFromPixelFormat(int pixelFormat)
-        {
-            // 使用EyeCam.Shared.Revealer.PixelFormatMap进行匹配
-            foreach (var kvp in EyeCam.Shared.Revealer.PixelFormatMap)
-            {
-                if (kvp.Value == pixelFormat)
-                {
-                    return kvp.Key switch
-                    {
-                        "Mono8" => (MatType.CV_8UC1, 8, 1),
-                        "Mono10" => (MatType.CV_16UC1, 10, 1),
-                        "Mono12" => (MatType.CV_16UC1, 12, 1),
-                        "Mono16" => (MatType.CV_16UC1, 16, 1),
-                        "RGB8" => (MatType.CV_8UC3, 8, 3),
-                        "BGR8" => (MatType.CV_8UC3, 8, 3),
-                        _ => (MatType.CV_8UC1, 8, 1)
-                    };
-                }
-            }
-
-            // 默认：Mono8
-            return (MatType.CV_8UC1, 8, 1);
         }
 
         #endregion

@@ -1,4 +1,5 @@
 ﻿using EyeCam.Shared.Native;
+using OpenCvSharp;
 using System.Text;
 
 namespace EyeCam.Shared
@@ -431,7 +432,7 @@ namespace EyeCam.Shared
 
         /// <summary>获取处理后的图像（同步）</summary>
         /// <param name="timeout">超时时间(毫秒)</param>
-        public ImageFrame GetProcessedFrame(uint timeout = 5000)
+        public Mat GetProcessedFrame(uint timeout = 5000) // ✅ 改为返回 Mat
         {
             CheckDisposed();
 
@@ -443,8 +444,12 @@ namespace EyeCam.Shared
 
             try
             {
-                var frame = new ImageFrame(imageData);
-                return frame;
+                // ✅ 直接转换为Mat
+                Mat? mat = ConvertImageDataToMat(ref imageData);
+                if (mat == null)
+                    throw new CameraException("图像转换失败");
+
+                return mat;
             }
             finally
             {
@@ -745,11 +750,11 @@ namespace EyeCam.Shared
         /// <summary>注册处理后图像数据回调函数（异步）</summary>
         /// <remarks>
         /// 重要改进：
-        /// 1. 立即复制图像数据到托管内存
+        /// 1. 立即转换为Mat对象
         /// 2. 异步执行用户回调，不阻塞 SDK 线程
         /// 3. 防止处理积压导致 Buffer Full
         /// </remarks>
-        public void AttachProcessedGrabbing(Action<ImageFrame> callback)
+        public void AttachProcessedGrabbing(Action<Mat> callback) // ✅ 改为 Action<Mat>
         {
             CheckDisposed();
 
@@ -762,13 +767,19 @@ namespace EyeCam.Shared
                 {
                     Interlocked.Increment(ref _totalFramesReceived);
 
-                    // ✅ 立即复制数据（必须在 SDK 回调返回前完成）
-                    var frame = new ImageFrame(imageData);
+                    // ✅ 立即转换为Mat（必须在 SDK 回调返回前完成）
+                    Mat? mat = ConvertImageDataToMat(ref imageData);
+                    if (mat == null || mat.Empty())
+                    {
+                        Interlocked.Increment(ref _totalFramesDropped);
+                        return;
+                    }
 
                     // ✅ 检查是否有上一帧正在处理（防止积压）
                     if (Interlocked.CompareExchange(ref _isProcessingFrame, 1, 0) != 0)
                     {
                         Interlocked.Increment(ref _totalFramesDropped);
+                        mat.Dispose(); // ✅ 释放未使用的Mat
 
                         // 定期打印统计
                         if (_totalFramesReceived % 100 == 0)
@@ -784,7 +795,7 @@ namespace EyeCam.Shared
                     {
                         try
                         {
-                            callback(frame);
+                            callback(mat); // ✅ 直接传递Mat
                             Interlocked.Increment(ref _totalFramesProcessed);
                         }
                         catch (Exception ex)
@@ -793,6 +804,7 @@ namespace EyeCam.Shared
                         }
                         finally
                         {
+                            mat.Dispose(); // ✅ 回调完成后释放Mat
                             Interlocked.Exchange(ref _isProcessingFrame, 0);
                         }
                     });
@@ -1454,6 +1466,80 @@ namespace EyeCam.Shared
         #endregion
 
         #region 私有方法
+
+        //todo，此处后续可用：
+        //环形缓冲区 + 专用处理线程
+
+        /// <summary>
+        /// 将ImageData转换为OpenCV Mat
+        /// </summary>
+        private static unsafe Mat? ConvertImageDataToMat(ref NativeMethods.ImageData imageData)
+        {
+            if (imageData.pData == IntPtr.Zero || imageData.dataSize == 0)
+                return null;
+
+            Mat? mat = null;
+            try
+            {
+                // 根据像素格式确定Mat类型
+                (MatType matType, int depth, int channels) = GetMatTypeFromPixelFormat(imageData.pixelFormat);
+
+                // 创建Mat
+                mat = new Mat(imageData.height, imageData.width, matType);
+
+                // 验证数据大小
+                int expectedSize = imageData.height * imageData.width * channels * (depth / 8);
+                int copySize = Math.Min(expectedSize, imageData.dataSize);
+
+                if (imageData.dataSize < expectedSize)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[WARNING] Data size mismatch: expected {expectedSize}, got {imageData.dataSize}");
+                }
+
+                // ✅ 修改：使用 Buffer.MemoryCopy 直接复制内存
+                Buffer.MemoryCopy(
+                    imageData.pData.ToPointer(),
+                    mat.Data.ToPointer(),
+                    mat.Total() * mat.ElemSize(),
+                    copySize
+                );
+
+                return mat;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ERROR] Frame conversion failed: {ex.Message}");
+                mat?.Dispose();
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 根据像素格式获取Mat类型
+        /// </summary>
+        private static (MatType matType, int depth, int channels) GetMatTypeFromPixelFormat(int pixelFormat)
+        {
+            // 使用PixelFormatMap进行匹配
+            foreach (var kvp in PixelFormatMap)
+            {
+                if (kvp.Value == pixelFormat)
+                {
+                    return kvp.Key switch
+                    {
+                        "Mono8" => (MatType.CV_8UC1, 8, 1),
+                        "Mono10" => (MatType.CV_16UC1, 10, 1),
+                        "Mono12" => (MatType.CV_16UC1, 12, 1),
+                        "Mono16" => (MatType.CV_16UC1, 16, 1),
+                        "RGB8" => (MatType.CV_8UC3, 8, 3),
+                        "BGR8" => (MatType.CV_8UC3, 8, 3),
+                        _ => (MatType.CV_8UC1, 8, 1)
+                    };
+                }
+            }
+
+            // 默认：Mono8
+            return (MatType.CV_8UC1, 8, 1);
+        }
 
         private void CheckDisposed()
         {
