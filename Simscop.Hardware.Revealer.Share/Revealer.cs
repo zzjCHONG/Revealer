@@ -736,9 +736,19 @@ namespace EyeCam.Shared
                 throw new CameraException(ret);
         }
 
+        // ✅ 新增：丢帧保护
+        private int _isProcessingFrame = 0;
+        private long _totalFramesReceived = 0;
+        private long _totalFramesDropped = 0;
+        private long _totalFramesProcessed = 0;
+
         /// <summary>注册处理后图像数据回调函数（异步）</summary>
-        /// <param name="callback">回调函数</param>
-        /// <remarks>与 GetProcessedFrame 互斥，只能选其一</remarks>
+        /// <remarks>
+        /// 重要改进：
+        /// 1. 立即复制图像数据到托管内存
+        /// 2. 异步执行用户回调，不阻塞 SDK 线程
+        /// 3. 防止处理积压导致 Buffer Full
+        /// </remarks>
         public void AttachProcessedGrabbing(Action<ImageFrame> callback)
         {
             CheckDisposed();
@@ -746,18 +756,51 @@ namespace EyeCam.Shared
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
 
-            // 创建委托并保持引用（防止GC）
             _frameCallback = (ref NativeMethods.ImageData imageData, IntPtr pUser) =>
             {
                 try
                 {
+                    Interlocked.Increment(ref _totalFramesReceived);
+
+                    // ✅ 立即复制数据（必须在 SDK 回调返回前完成）
                     var frame = new ImageFrame(imageData);
-                    callback(frame);
+
+                    // ✅ 检查是否有上一帧正在处理（防止积压）
+                    if (Interlocked.CompareExchange(ref _isProcessingFrame, 1, 0) != 0)
+                    {
+                        Interlocked.Increment(ref _totalFramesDropped);
+
+                        // 定期打印统计
+                        if (_totalFramesReceived % 100 == 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine(
+                                $"[Revealer] 接收:{_totalFramesReceived} 处理:{_totalFramesProcessed} 丢弃:{_totalFramesDropped}");
+                        }
+                        return;
+                    }
+
+                    // ✅ 异步执行用户回调（关键改进）
+                    _ = Task.Run(() =>
+                    {
+                        try
+                        {
+                            callback(frame);
+                            Interlocked.Increment(ref _totalFramesProcessed);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"用户回调异常: {ex.Message}");
+                        }
+                        finally
+                        {
+                            Interlocked.Exchange(ref _isProcessingFrame, 0);
+                        }
+                    });
                 }
                 catch (Exception ex)
                 {
-                    // 回调中的异常需要记录，避免崩溃
                     System.Diagnostics.Debug.WriteLine($"帧回调异常: {ex.Message}");
+                    Interlocked.Exchange(ref _isProcessingFrame, 0);
                 }
             };
 

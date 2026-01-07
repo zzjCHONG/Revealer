@@ -308,8 +308,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
             try
             {
-                //// 设置缓冲区数量
-                //_camera.SetBufferCount(10);
+                // 设置缓冲区数量
+                _camera.SetBufferCount(10);
 
                 // 注册帧回调
                 _camera.AttachProcessedGrabbing(OnFrameCallback);
@@ -361,7 +361,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         private void OnFrameCallback(ImageFrame frame)
         {
-            Debug.WriteLine($"{DateTime.Now:HH-mm-ss-fff}_{frame.BlockId}");
+            //Debug.WriteLine($"{DateTime.Now:HH-mm-ss-fff}_{frame.BlockId}");
 
             try
             {
