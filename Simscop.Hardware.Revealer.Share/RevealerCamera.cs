@@ -379,7 +379,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 // 计算FPS
                 _frameCount++;
-                if (_fpsStopwatch.Elapsed.TotalSeconds >= 3.0)
+                if (_fpsStopwatch.Elapsed.TotalSeconds >= 1.0)
                 {
                     _calculatedFps = _frameCount / _fpsStopwatch.Elapsed.TotalSeconds;
                     _frameCount = 0;
@@ -423,7 +423,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                     // 配置软件触发 - 使用索引5
                     _camera.TriggerInType = 5; // Software
-                    _camera.SetBufferCount(3);
+                    //_camera.SetBufferCount(3);
                     _camera.StartGrabbing();
 
                     // 发送软件触发

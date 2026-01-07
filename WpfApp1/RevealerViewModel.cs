@@ -29,7 +29,7 @@ namespace WpfApp1
         {
             _camera = new RevealerCamera();
 
-            _timer = new System.Timers.Timer(3000);
+            _timer = new System.Timers.Timer(300);
             _timer.Elapsed += OnTimerElapsed!;
 
             _camera.FrameReceived += img =>
@@ -74,19 +74,18 @@ namespace WpfApp1
             ImageModeList = _camera.ImageModesList;
             CompositeModeList = _camera.CompositeModeList;
             PseudoColorList = _camera.PseudoColorList;
+            FrameRateLimit = _camera.FrameRateLimit;
 
             IsFlipHorizontal = _camera.IsFlipHorizontally;
             IsFlipVertical = _camera.IsFlipVertially;
             IsAutoExposure = _camera.IsAutoExposure;
             IsAutoLevel = _camera.IsAutoLevel;
 
-            FrameRateLimit = _camera.FrameRateLimit;
-
+            ResolutionIndex = 0;
             ROIIndex = 0;
             preRoiIndex = ROIIndex;
-            ResolutionIndex = 0;
             PseudoColorIndex = 0;
-            CompositeModeIndex = 0;
+            ImageModeIndex = 3;//高动态模式
             IsFlipHorizontal = false;
             IsFlipVertical = false;
             IsAutoExposure = false;
@@ -99,15 +98,17 @@ namespace WpfApp1
         private void OnTimerElapsed(object sender, ElapsedEventArgs e)
         {
             Exposure = _camera!.Exposure;
-            Gamma = _camera!.Gamma;
-            Contrast = _camera!.Contrast;
-            Brightness = _camera!.Brightness;
             LeftLevel = _camera.CurrentLevel.Left;
             RightLevel = _camera.CurrentLevel.Right;
-
             FrameRate = _camera!.FrameRate;
+
             FrameRateLimit = _camera!.FrameRateLimit;
-            IsAutoLevel = _camera!.IsAutoLevel;
+            //Gamma = _camera!.Gamma;
+            //Contrast = _camera!.Contrast;
+            //Brightness = _camera!.Brightness;
+
+            //Debug.WriteLine("#############"+FrameRate);
+            //Debug.WriteLine("*************" + FrameRateLimit);
         }
 
         [ObservableProperty]
@@ -161,7 +162,10 @@ namespace WpfApp1
         [ObservableProperty]
         public bool _isLevelTextboxEnable = true;
 
+        public bool EnableControlwithIsStartAcquisition => !IsStartAcquisition;
+
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(EnableControlwithIsStartAcquisition))]
         private bool _isStartAcquisition = false;
 
         [ObservableProperty]

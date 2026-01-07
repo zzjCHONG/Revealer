@@ -57,11 +57,19 @@ namespace EyeCam.Shared
         /// </summary>
         public static readonly List<string> PseudoColorMapList = new()
         {
+            //"HSV",                // 0: HSV色彩映射
+            //"Jet (Matlab风格)",   // 1: Jet色彩映射
+            //"红色渐变",           // 2: 红色渐变
+            //"绿色渐变",           // 3: 绿色渐变
+            //"蓝色渐变"            // 4: 蓝色渐变
+
+            //实测伪彩列表
+
             "HSV",                // 0: HSV色彩映射
             "Jet (Matlab风格)",   // 1: Jet色彩映射
-            "红色渐变",           // 2: 红色渐变
+            "蓝色渐变",            // 2: 蓝色渐变 
             "绿色渐变",           // 3: 绿色渐变
-            "蓝色渐变"            // 4: 蓝色渐变
+            "红色渐变",           // 4: 红色渐变 
         };
 
         /// <summary>
