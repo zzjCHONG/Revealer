@@ -1495,6 +1495,8 @@ namespace EyeCam.Shared
             {
                 (MatType matType, int depth, int channels) = GetMatTypeFromPixelFormat(imageData.pixelFormat);
 
+                Debug.WriteLine($"{matType.ToString()}  {imageData.width}*{imageData.height}");
+
                 // ✅ 修复：对于10/12/16bit图像，每像素固定2字节
                 int bytesPerPixel;
                 if (matType == MatType.CV_16UC1)

@@ -97,9 +97,6 @@ namespace WpfApp1
         private void OnTimerElapsed(object sender, ElapsedEventArgs e)
         {
             Exposure = _camera!.Exposure;
-
-            Debug.WriteLine(Exposure);
-
             LeftLevel = _camera.CurrentLevel.Left;
             RightLevel = _camera.CurrentLevel.Right;
             FrameRate = _camera!.FrameRate;
@@ -204,7 +201,10 @@ namespace WpfApp1
         private bool _propControlIsEnable = true;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsOperable))]
         private bool frameRateEnable;
+
+        public bool IsframeRateEnableControl=> FrameRateEnable;
 
         [ObservableProperty]
         private double frameRateLimit;

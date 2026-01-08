@@ -225,6 +225,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     Console.WriteLine("[WARNING] Temperature control not available");
                 }
 
+                UpdateROIOptionsForResolution(0);
+
                 Console.WriteLine("[INFO] Default settings applied successfully");
             }
             catch (Exception ex)
@@ -1230,6 +1232,12 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 // 设置Binning模式
                 _camera!.BinningMode = (ulong)resolution;
 
+                // 更新ROI选项列表
+                UpdateROIOptionsForResolution(resolution);
+
+                // 重置ROI到全传感器区域
+                _camera.ResetROI();
+
                 if (wasCapturing)
                     StartCapture();
 
@@ -1297,14 +1305,55 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
-        public List<string> ROIList => new()
+        private readonly List<string> _roiList = new();
+
+        /// <summary>
+        /// 根据分辨率更新可用的 ROI 选项列表
+        /// </summary>
+        private void UpdateROIOptionsForResolution(int resolutionIndex)
         {
-            "2048 x 2048 (Full Sensor)",
-            "1024 x 1024 (Center)",
-            "512 x 512 (Center)",
-            "256 x 256 (Center)",
-            "自定义ROI"
-        };
+            _roiList.Clear();
+
+            // 根据BinningMode获取实际分辨率
+            // BinningModeList: 0=1x1, 1=2x2, 2=4x4
+            var (maxWidth, maxHeight) = resolutionIndex switch
+            {
+                0 => (2048, 2048), // 1x1 Bin (全分辨率)
+                1 => (1024, 1024), // 2x2 Bin
+                2 => (512, 512),   // 4x4 Bin
+                _ => (2048, 2048)  // 默认
+            };
+
+            // 根据最大尺寸生成 ROI 选项
+            if (maxWidth >= 2048)
+            {
+                _roiList.Add("2048 x 2048 (全传感器)");
+                _roiList.Add("1024 x 1024 (中心)");
+                _roiList.Add("512 x 512 (中心)");
+                _roiList.Add("256 x 256 (中心)");
+            }
+            else if (maxWidth >= 1024)
+            {
+                _roiList.Add("1024 x 1024 (全传感器)");
+                _roiList.Add("512 x 512 (中心)");
+                _roiList.Add("256 x 256 (中心)");
+                _roiList.Add("128 x 128 (中心)");
+            }
+            else if (maxWidth >= 512)
+            {
+                _roiList.Add("512 x 512 (全传感器)");
+                _roiList.Add("256 x 256 (中心)");
+                _roiList.Add("128 x 128 (中心)");
+                _roiList.Add("64 x 64 (中心)");
+            }
+
+            // 总是添加自定义选项
+            _roiList.Add("自定义ROI");
+
+            Console.WriteLine($"[INFO] ROI options updated for binning mode {resolutionIndex}: {string.Join(", ", _roiList)}");
+        }
+
+        public List<string> ROIList => _roiList; // 修改为返回动态列表
 
         #endregion
 

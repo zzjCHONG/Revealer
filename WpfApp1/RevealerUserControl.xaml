@@ -83,7 +83,10 @@
 
                         <Separator Margin="10,0,10,10" Background="Black" />
 
-                        <GroupBox Header="亮度" IsEnabled="True">
+                        <GroupBox
+                            Header="亮度"
+                            IsEnabled="True"
+                            ToolTip="修改该项，将输出RGB图像">
                             <DockPanel>
 
                                 <TextBox
@@ -106,7 +109,10 @@
                             </DockPanel>
                         </GroupBox>
 
-                        <GroupBox Header="对比度" IsEnabled="True">
+                        <GroupBox
+                            Header="对比度"
+                            IsEnabled="True"
+                            ToolTip="修改该项，将输出RGB图像">
                             <DockPanel>
                                 <TextBox
                                     x:Name="ContrastTextBox"
@@ -128,7 +134,10 @@
                             </DockPanel>
                         </GroupBox>
 
-                        <GroupBox Header="伽玛" IsEnabled="True">
+                        <GroupBox
+                            Header="伽玛"
+                            IsEnabled="True"
+                            ToolTip="修改该项，将输出RGB图像">
                             <DockPanel>
                                 <TextBox
                                     x:Name="GammaTextBox"
@@ -149,7 +158,10 @@
                             </DockPanel>
                         </GroupBox>
 
-                        <GroupBox Header="图像翻转" IsEnabled="True">
+                        <GroupBox
+                            Header="图像翻转"
+                            IsEnabled="True"
+                            ToolTip="修改该项，将输出RGB图像">
 
                             <ComboBox
                                 x:Name="FlipComboBox"
@@ -248,7 +260,10 @@
                             </DockPanel>-->
                         </GroupBox>
 
-                        <GroupBox Header="伪彩" IsEnabled="True">
+                        <GroupBox
+                            Header="伪彩"
+                            IsEnabled="True"
+                            ToolTip="修改该项，将输出RGB图像">
                             <ComboBox
                                 x:Name="PseudoColorModeComboBox"
                                 ItemsSource="{Binding PseudoColorList}"
@@ -451,6 +466,7 @@
                                         Width="60"
                                         HorizontalAlignment="Stretch"
                                         DockPanel.Dock="Right"
+                                        IsEnabled="{Binding IsframeRateEnableControl}"
                                         KeyDown="TextBox_KeyDown"
                                         Text="{Binding FrameRateLimit, StringFormat={}{0:F2}, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
                                         ToolTip="Enter确认输入" />
@@ -474,7 +490,7 @@
                                                     Height="32"
                                                     Background="Transparent"
                                                     BorderThickness="0"
-                                                    Content="帧率使能"
+                                                    Content="帧率限制"
                                                     FontSize="13"
                                                     Foreground="White" />
                                             </Border>
@@ -489,7 +505,7 @@
                                                 Height="32"
                                                 Background="Transparent"
                                                 BorderThickness="0"
-                                                Content="帧率使能"
+                                                Content="帧率限制"
                                                 FontSize="13"
                                                 Foreground="{DynamicResource PrimaryTextBrush}" />
                                         </Border>
@@ -536,7 +552,7 @@
                             Command="{Binding RestoretoInitialSettingsCommand}"
                             Content="恢复初始设置"
                             FontSize="13"
-                            IsEnabled="True" />
+                            IsEnabled="{Binding IsStartAcquisition}" />
 
                         <ToggleButton
                             Grid.Column="1"
