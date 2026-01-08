@@ -83,6 +83,8 @@ namespace WpfApp1
             ROIIndex = 0;
             preRoiIndex = ROIIndex;
             PseudoColorIndex = 0;
+            LeftLevel = _camera.CurrentLevel.Left;
+            RightLevel = _camera.CurrentLevel.Right;
 
             IsAutoExposure = _camera.IsAutoExposure;
             IsAutoLevel = _camera.IsAutoLevel;
@@ -102,7 +104,6 @@ namespace WpfApp1
             Gamma = _camera!.Gamma;
             Contrast = _camera!.Contrast;
             Brightness = _camera!.Brightness;
-
         }
 
         [ObservableProperty]
@@ -132,9 +133,8 @@ namespace WpfApp1
         [ObservableProperty]
         public double _frameRate = 0;
 
-
         [ObservableProperty]
-        public List<string> flipList;
+        public List<string>? flipList;
 
         [ObservableProperty]
         public int flipIndex;
@@ -446,8 +446,13 @@ namespace WpfApp1
 
         partial void OnImageModeIndexChanged(int value)
         {
-            if(_camera!.ImageModeIndex!=value)
+            if (_camera!.ImageModeIndex != value)
+            {
                 _camera!.ImageModeIndex = value;
+
+                LevelRangeMax = _camera!.LevelRange.Max;
+                LevelRangeMin = _camera.LevelRange.Min;
+            }
         }
 
         partial void OnLeftLevelChanged(int value)

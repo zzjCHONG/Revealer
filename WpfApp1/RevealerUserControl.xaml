@@ -406,7 +406,7 @@
                             </DockPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Binning设置" IsEnabled="True">
+                        <GroupBox Header="合并设置" IsEnabled="True">
                             <ComboBox
                                 x:Name="ResolutionComboBox"
                                 ItemsSource="{Binding ResolutionsList}"

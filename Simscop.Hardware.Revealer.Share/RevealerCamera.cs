@@ -24,7 +24,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         // 状态标志
         private bool _isAutoExposureEnabled = false;
-        private int _currentReadoutMode = 7; 
 
         public event Action<Mat>? FrameReceived;
         public event Action<bool>? OnDisConnectState;
@@ -743,17 +742,23 @@ namespace Simscop.Spindisk.Hardware.Revealer
             get
             {
                 if (_camera == null)
-                    return (0, 65535);
+                    return (LevelRange.Min, LevelRange.Max);
 
                 try
                 {
                     int left = _camera.GetAutoLevelValue(2);  // 2=左色阶
                     int right = _camera.GetAutoLevelValue(1); // 1=右色阶
+
+                    // ✅ 限制在当前LevelRange范围内
+                    var range = LevelRange;
+                    left = Math.Clamp(left, range.Min, range.Max);
+                    right = Math.Clamp(right, range.Min, range.Max);
+
                     return (left, right);
                 }
                 catch
                 {
-                    return (0, LevelRange.Max);
+                    return (LevelRange.Min, LevelRange.Max);
                 }
             }
             set
@@ -770,8 +775,9 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    int left = Math.Clamp(value.Left, LevelRange.Min, LevelRange.Max);
-                    int right = Math.Clamp(value.Right, LevelRange.Min, LevelRange.Max);
+                    var range = LevelRange;
+                    int left = Math.Clamp(value.Left, range.Min, range.Max);
+                    int right = Math.Clamp(value.Right, range.Min, range.Max);
 
                     _camera.SetAutoLevelValue(2, left);  // 2=左色阶
                     _camera.SetAutoLevelValue(1, right); // 1=右色阶
@@ -789,8 +795,10 @@ namespace Simscop.Spindisk.Hardware.Revealer
         {
             get
             {
-                // 根据ReadoutMode返回范围
-                int maxValue = _currentReadoutMode switch
+                // ✅ 实时读取相机的ReadoutMode
+                ulong currentMode = _camera!.ReadoutMode;
+
+                int maxValue = currentMode switch
                 {
                     0 or 1 => 2047,  // 11位：0-2047
                     6 => 4095,       // 12位：0-4095
@@ -1066,14 +1074,26 @@ namespace Simscop.Spindisk.Hardware.Revealer
         {
             get
             {
-                // 根据ReadoutMode返回位深度
-                return _currentReadoutMode switch
+                if (_camera == null)
+                    return 16;
+
+                try
                 {
-                    0 or 1 => 11,  // bit11
-                    6 => 12,       // bit12
-                    7 => 16,       // bit16
-                    _ => 16
-                };
+                    // ✅ 实时读取相机的ReadoutMode
+                    ulong currentMode = _camera.ReadoutMode;
+
+                    return currentMode switch
+                    {
+                        0 or 1 => 11,  // bit11
+                        6 => 12,       // bit12
+                        7 => 16,       // bit16
+                        _ => 16
+                    };
+                }
+                catch
+                {
+                    return 16;
+                }
             }
             set => throw new NotImplementedException("Cannot set image depth directly, use SetImageMode instead");
         }
@@ -1306,7 +1326,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 int actualMode = modeMap[imageMode];
                 _camera!.ReadoutMode = (ulong)actualMode;
-                _currentReadoutMode = actualMode;
 
                 if (wasCapturing)
                     StartCapture();
@@ -1343,7 +1362,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
                      
                     int actualMode = modeMap[value];
                     _camera!.ReadoutMode = (ulong)actualMode;
-                    _currentReadoutMode = actualMode;
 
                     if (wasCapturing)
                         StartCapture();

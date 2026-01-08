@@ -1536,8 +1536,6 @@ namespace EyeCam.Shared
                     Buffer.MemoryCopy(srcRow, dstRow, dstStride, rowBytes);
                 }
 
-                Debug.WriteLine($"##Mat转换: {matType} {width}x{height} bytesPerPixel:{bytesPerPixel} rowBytes:{rowBytes}");
-
                 // 移位归一化
                 Mat? normalizedMat = NormalizeTo16Bit(mat, readoutMode);
                 mat.Dispose();
