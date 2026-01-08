@@ -444,7 +444,7 @@ namespace EyeCam.Shared
 
         /// <summary>获取处理后的图像（同步）</summary>
         /// <param name="timeout">超时时间(毫秒)</param>
-        public Mat GetProcessedFrame(uint timeout = 5000) // ✅ 改为返回 Mat
+        public Mat GetProcessedFrame(uint timeout = 5000)
         {
             CheckDisposed();
 
@@ -456,8 +456,8 @@ namespace EyeCam.Shared
 
             try
             {
-                // ✅ 直接转换为Mat
-                Mat? mat = ConvertImageDataToMat(ref imageData);
+                // ✅ 传递当前的 ReadoutMode
+                Mat? mat = ConvertImageDataToMat(ref imageData, this.ReadoutMode);
                 if (mat == null)
                     throw new CameraException("图像转换失败");
 
@@ -780,7 +780,7 @@ namespace EyeCam.Shared
                     Interlocked.Increment(ref _totalFramesReceived);
 
                     // ✅ 立即转换为Mat（必须在 SDK 回调返回前完成）
-                    Mat? mat = ConvertImageDataToMat(ref imageData);
+                    Mat? mat = ConvertImageDataToMat(ref imageData, this.ReadoutMode);
                     if (mat == null || mat.Empty())
                     {
                         Interlocked.Increment(ref _totalFramesDropped);
@@ -1485,7 +1485,7 @@ namespace EyeCam.Shared
         /// <summary>
         /// 将ImageData转换为OpenCV Mat
         /// </summary>
-        private static unsafe Mat? ConvertImageDataToMat(ref NativeMethods.ImageData imageData)
+        private static unsafe Mat? ConvertImageDataToMat(ref NativeMethods.ImageData imageData, ulong readoutMode)
         {
             if (imageData.pData == IntPtr.Zero || imageData.dataSize == 0)
                 return null;
@@ -1493,32 +1493,56 @@ namespace EyeCam.Shared
             Mat? mat = null;
             try
             {
-                // 根据像素格式确定Mat类型
                 (MatType matType, int depth, int channels) = GetMatTypeFromPixelFormat(imageData.pixelFormat);
 
-                // 创建Mat
-                mat = new Mat(imageData.height, imageData.width, matType);
-
-                // 验证数据大小
-                int expectedSize = imageData.height * imageData.width * channels * (depth / 8);
-                int copySize = Math.Min(expectedSize, imageData.dataSize);
-
-                if (imageData.dataSize < expectedSize)
+                // ✅ 修复：对于10/12/16bit图像，每像素固定2字节
+                int bytesPerPixel;
+                if (matType == MatType.CV_16UC1)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[WARNING] Data size mismatch: expected {expectedSize}, got {imageData.dataSize}");
+                    bytesPerPixel = 2;  // 16bit单通道，2字节
+                }
+                else if (matType == MatType.CV_8UC1)
+                {
+                    bytesPerPixel = 1;  // 8bit单通道，1字节
+                }
+                else if (matType == MatType.CV_8UC3)
+                {
+                    bytesPerPixel = 3;  // 8bit三通道，3字节
+                }
+                else
+                {
+                    // 通用计算（向上取整）
+                    bytesPerPixel = channels * ((depth + 7) / 8);
                 }
 
-                // ✅ 修改：使用 Buffer.MemoryCopy 直接复制内存
-                Buffer.MemoryCopy(
-                    imageData.pData.ToPointer(),
-                    mat.Data.ToPointer(),
-                    mat.Total() * mat.ElemSize(),
-                    copySize
-                );
+                int width = imageData.width;
+                int height = imageData.height;
+                int sdkStride = imageData.stride;
+                int rowBytes = width * bytesPerPixel;  // ✅ 现在计算正确了
 
-                Debug.WriteLine("##" + matType.ToString() + $"_{imageData.width}*{imageData.height}");
+                // 创建连续内存的Mat
+                mat = new Mat(height, width, matType);
 
-                return mat;
+                // 按行复制
+                byte* srcBase = (byte*)imageData.pData.ToPointer();
+                byte* dstBase = (byte*)mat.Data.ToPointer();
+                int dstStride = (int)mat.Step();
+
+                for (int row = 0; row < height; row++)
+                {
+                    byte* srcRow = srcBase + (row * sdkStride);
+                    byte* dstRow = dstBase + (row * dstStride);
+
+                    Buffer.MemoryCopy(srcRow, dstRow, dstStride, rowBytes);
+                }
+
+                Debug.WriteLine($"##Mat转换: {matType} {width}x{height} bytesPerPixel:{bytesPerPixel} rowBytes:{rowBytes}");
+
+                // 移位归一化
+                Mat? normalizedMat = NormalizeTo16Bit(mat, readoutMode);
+                mat.Dispose();
+
+                return normalizedMat;
             }
             catch (Exception ex)
             {
@@ -1553,6 +1577,51 @@ namespace EyeCam.Shared
 
             // 默认：Mono8
             return (MatType.CV_8UC1, 8, 1);
+        }
+
+        /// <summary>
+        /// 将11bit或12bit图像转换为标准16bit（左移补齐高位）
+        /// </summary>
+        /// <param name="source">源图像</param>
+        /// <param name="readoutMode">读出模式</param>
+        /// <returns>归一化后的16bit图像</returns>
+        private static Mat? NormalizeTo16Bit(Mat source, ulong readoutMode)
+        {
+            if (source == null || source.Empty())
+                return null;
+
+            // 根据 ReadoutMode 确定位深度
+            // 0 = bit11_HS_Low    - 11位
+            // 1 = bit11_HS_High   - 11位
+            // 6 = bit12_CMS       - 12位
+            // 7 = bit16_From11    - 16位
+            int bitDepth = readoutMode switch
+            {
+                0 or 1 => 11,  // 11位高速模式
+                6 => 12,       // 12位低噪声模式
+                7 => 16,       // 16位高动态模式
+                _ => 16        // 默认16位
+            };
+
+            // 如果已经是16bit，直接返回
+            if (bitDepth == 16)
+                return source.Clone();
+
+            // 计算需要左移的位数
+            int leftShift = 16 - bitDepth;
+
+            if (leftShift <= 0)
+                return source.Clone();
+
+            Mat output = new Mat();
+
+            // 左移补齐到16bit
+            // 11bit: 左移5位 (0-2047 -> 0-65504)
+            // 12bit: 左移4位 (0-4095 -> 0-65520)
+            source.ConvertTo(output, MatType.CV_16UC1);
+            output *= (1 << leftShift);
+
+            return output;
         }
 
         private void CheckDisposed()
