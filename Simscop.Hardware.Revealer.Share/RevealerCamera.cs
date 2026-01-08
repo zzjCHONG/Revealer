@@ -10,8 +10,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
     public class RevealerCamera : ICamera
     {
         private EyeCam.Shared.Revealer? _camera;
-        private int _deviceIndex;
-        private bool _isInitialized = false;
+        private readonly int _deviceIndex;
         private bool _isCapturing = false;
         private Mat? _latestFrame;
         private readonly object _lockObj = new();
@@ -25,8 +24,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         // 状态标志
         private bool _isAutoExposureEnabled = false;
-        private int _currentReadoutMode = 7; // 默认：高动态模式
-        private int _currentBinningMode = 0; // 默认：1x1
+        private int _currentReadoutMode = 7; 
 
         public event Action<Mat>? FrameReceived;
         public event Action<bool>? OnDisConnectState;
@@ -90,7 +88,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 // 初始化默认设置
                 InitDefaultSettings();
-                _isInitialized = true;
 
                 return true;
             }
@@ -175,19 +172,18 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     _camera.StopGrabbing();
                 }
 
-                // 1. 设置ROI为最大值（全传感器区域）
-                _camera.ResetROI();
-                Console.WriteLine($"[INFO] Sensor size: {_camera.SensorWidth}x{_camera.SensorHeight}");
+                //// 1. 设置ROI为最大值（全传感器区域）
+                //_camera.ResetROI();
+                //Console.WriteLine($"[INFO] Sensor size: {_camera.SensorWidth}x{_camera.SensorHeight}");
 
-                // 2. 设置读出模式为高动态（16位）- 使用索引7
-                _camera.ReadoutMode = 7; // 16位高动态范围
-                _currentReadoutMode = 7;
-                Console.WriteLine($"[INFO] Readout mode: {EyeCam.Shared.Revealer.ReadoutModeList[7]}");
+                //// 2. 设置读出模式为高动态（16位）- 使用索引7
+                //_camera.ReadoutMode = 7; // 16位高动态范围
+                //_currentReadoutMode = 7;
+                //Console.WriteLine($"[INFO] Readout mode: {EyeCam.Shared.Revealer.ReadoutModeList[7]}");
 
-                // 3. 设置Binning模式为1x1（全分辨率）- 使用索引0
-                _camera.BinningMode = 0;
-                _currentBinningMode = 0;
-                Console.WriteLine($"[INFO] Binning mode: {EyeCam.Shared.Revealer.BinningModeList[0]}");
+                //// 3. 设置Binning模式为1x1（全分辨率）- 使用索引0
+                //_camera.BinningMode = 0;
+                //Console.WriteLine($"[INFO] Binning mode: {EyeCam.Shared.Revealer.BinningModeList[0]}");
 
                 // 4. 设置像素格式为Mono16
                 try
@@ -200,13 +196,13 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     Console.WriteLine("[WARNING] Failed to set pixel format to Mono16");
                 }
 
-                // 5. 设置曝光时间（默认10ms）
-                _camera.ExposureTime = 10000; // 10ms = 10000us
-                Console.WriteLine($"[INFO] Exposure time: {_camera.ExposureTime / 1000.0}ms");
+                //// 5. 设置曝光时间（默认10ms）
+                //_camera.ExposureTime = 50000; // 10ms = 10000us
+                //Console.WriteLine($"[INFO] Exposure time: {_camera.ExposureTime / 1000.0}ms");
 
-                // 6. 禁用帧率限制（最大速度采集）
-                _camera.FrameRateEnable = false;
-                Console.WriteLine("[INFO] Frame rate control: Disabled (Max speed)");
+                //// 6. 禁用帧率限制（最大速度采集）
+                //_camera.FrameRateEnable = false;
+                //Console.WriteLine("[INFO] Frame rate control: Disabled (Max speed)");
 
                 // 7. 设置为连续采集模式（关闭触发）- 使用索引0
                 _camera.TriggerInType = 0; // Off
@@ -569,6 +565,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
+                    if (!_camera.GetImageProcessingEnabled(2)) return 56;
                     return _camera.GetImageProcessingValue(2); // 2 = Gamma
                 }
                 catch
@@ -584,8 +581,16 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     int clampedValue = (int)Math.Clamp(value, 0, 100);
-                    _camera.SetImageProcessingValue(2, clampedValue); // 2 = Gamma
-                    _camera.SetImageProcessingEnabled(2, true);
+                    if (clampedValue == 56)
+                    {
+                        _camera.SetImageProcessingEnabled(2, false);
+                    }
+                    else
+                    {
+                        _camera.SetImageProcessingEnabled(2, true);
+                        _camera.SetImageProcessingValue(2, clampedValue); // 2 = Gamma
+                    }
+
                 }
                 catch (Exception ex)
                 {
@@ -603,6 +608,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
+                    if (!_camera.GetImageProcessingEnabled(1)) return 50;
                     return _camera.GetImageProcessingValue(1); // 1 = Contrast
                 }
                 catch
@@ -618,8 +624,16 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     int clampedValue = (int)Math.Clamp(value, 0, 100);
-                    _camera.SetImageProcessingValue(1, clampedValue); // 1 = Contrast
-                    _camera.SetImageProcessingEnabled(1, true);
+
+                    if (clampedValue == 50)
+                    {
+                        _camera.SetImageProcessingEnabled(1, false);
+                    }
+                    else
+                    {
+                        _camera.SetImageProcessingEnabled(1, true);
+                        _camera.SetImageProcessingValue(1, clampedValue); // 1 = Contrast
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -637,6 +651,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
+                    if (!_camera.GetImageProcessingEnabled(0)) return 50;
                     return _camera.GetImageProcessingValue(0); // 0 = Brightness
                 }
                 catch
@@ -652,8 +667,15 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     int clampedValue = (int)Math.Clamp(value, -100, 100);
-                    _camera.SetImageProcessingValue(0, clampedValue); // 0 = Brightness
-                    _camera.SetImageProcessingEnabled(0, true);
+                    if (clampedValue == 50)
+                    {
+                        _camera.SetImageProcessingEnabled(0, false);
+                    }
+                    else
+                    {
+                        _camera.SetImageProcessingEnabled(0, true);
+                        _camera.SetImageProcessingValue(0, clampedValue); 
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -859,6 +881,68 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         public double FpsCal => _calculatedFps;
 
+        public List<string > FlipList => EyeCam.Shared.Revealer.FlipModeList;
+
+        public int FlipIndex
+        {
+            get
+            {
+                if (_camera == null)
+                    return 0;
+                try
+                {
+                    // 检查翻转是否启用
+                    bool isEnabled = _camera.GetImageProcessingEnabled(5);
+                    if (!isEnabled)
+                        return 0; // 默认，无翻转
+
+                    // 获取翻转模式值
+                    int flipValue = _camera.GetImageProcessingValue(5);
+                    // API值映射：0->垂直, 1->水平, 2->垂直+水平
+                    // 列表索引：0->默认, 1->垂直, 2->水平, 3->垂直+水平
+                    return flipValue + 1; // API值+1就是列表索引
+                }
+                catch
+                {
+                    return 0;
+                }
+            }
+            set
+            {
+                if (_camera == null)
+                    return;
+                try
+                {
+                    // 列表索引：0->默认, 1->垂直, 2->水平, 3->垂直+水平
+                    switch (value)
+                    {
+                        case 0: // 默认，无翻转
+                            _camera.SetImageProcessingEnabled(5, false);
+                            break;
+                        case 1: // 垂直翻转
+                            _camera.SetImageProcessingEnabled(5, true);
+                            _camera.SetImageProcessingValue(5, 0);
+                            break;
+                        case 2: // 水平翻转
+                            _camera.SetImageProcessingEnabled(5, true);
+                            _camera.SetImageProcessingValue(5, 1);
+                            break;
+                        case 3: // 垂直+水平翻转
+                            _camera.SetImageProcessingEnabled(5, true);
+                            _camera.SetImageProcessingValue(5, 2);
+                            break;
+                        default:
+                            _camera.SetImageProcessingEnabled(5, false);
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    HandleCameraException(ex, "设置翻转模式");
+                }
+            }
+        }
+
         public bool IsFlipHorizontally
         {
             get
@@ -868,7 +952,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    return _camera.GetImageProcessingEnabled(5); // 5 = Flip
+                  
+                    return _camera.GetImageProcessingValue(5)==1; // 5 = Flip
                 }
                 catch
                 {
@@ -883,6 +968,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     _camera.SetImageProcessingEnabled(5, value); // 5 = Flip
+
                     if (value)
                     {
                         _camera.SetImageProcessingValue(5, 1); // 1 = Horizontal
@@ -897,7 +983,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         public bool IsFlipVertially
         {
-            get => false;
+            get => _camera!.GetImageProcessingValue(5) == 0;
             set
             {
                 if (_camera == null)
@@ -906,6 +992,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 try
                 {
                     _camera.SetImageProcessingEnabled(5, value); // 5 = Flip
+
                     if (value)
                     {
                         _camera.SetImageProcessingValue(5, 0); // 0 = Vertical
@@ -949,6 +1036,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
+                    _camera.SetImageProcessingEnabled(4, true);
+
                     int rotation = value % 360;
                     if (rotation < 0) rotation += 360;
 
@@ -962,7 +1051,9 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     };
 
                     _camera.SetImageProcessingValue(4, mode); // 4 = Rotation
-                    _camera.SetImageProcessingEnabled(4, mode != 0);
+
+                    if (mode == 0) _camera.SetImageProcessingEnabled(4, false);
+
                 }
                 catch (Exception ex)
                 {
@@ -1010,10 +1101,11 @@ namespace Simscop.Spindisk.Hardware.Revealer
             get
             {
                 if (_camera == null)
-                    return 0;
+                    return 0;//无伪彩
 
                 try
                 {
+                    if (!_camera.GetImageProcessingEnabled(3)) return 0;
                     return _camera.GetPseudoColorMap();
                 }
                 catch
@@ -1028,9 +1120,16 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    int mode = Math.Clamp(value, 0, EyeCam.Shared.Revealer.PseudoColorMapList.Count - 1);
-                    _camera.SetPseudoColorMap(mode);
-                    _camera.SetImageProcessingEnabled(3, mode > 0); // 3 = PseudoColor
+                    if (value == 0)
+                    {
+                        _camera.SetImageProcessingEnabled(3, false); //设置为该项使能关闭
+                    }
+                    else
+                    {
+                        _camera.SetImageProcessingEnabled(3, true); // 3 = PseudoColor
+                        int mode = Math.Clamp(value, 0, EyeCam.Shared.Revealer.PseudoColorMapList.Count) - 1;//第一个是新增的“默认选项”
+                        _camera.SetPseudoColorMap(mode);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1110,7 +1209,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 // 设置Binning模式
                 _camera!.BinningMode = (ulong)resolution;
-                _currentBinningMode = resolution;
 
                 if (wasCapturing)
                     StartCapture();
@@ -1207,7 +1305,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     StopCapture();
 
                 int actualMode = modeMap[imageMode];
-                _camera.ReadoutMode = (ulong)actualMode;
+                _camera!.ReadoutMode = (ulong)actualMode;
                 _currentReadoutMode = actualMode;
 
                 if (wasCapturing)
@@ -1220,6 +1318,42 @@ namespace Simscop.Spindisk.Hardware.Revealer
             {
                 HandleCameraException(ex, "设置图像模式");
                 return false;
+            }
+        }
+
+        public int ImageModeIndex
+        {
+            get
+            {
+                if (_camera == null) return 0;
+                // 索引映射：0->0, 1->1, 2->6, 3->7
+                int[] modeMap = { 0, 1, 6, 7 };
+                int actualMode = (int)_camera.ReadoutMode;
+                int index = Array.IndexOf(modeMap, actualMode);
+                return index >= 0 ? index : 0; // 如果找不到，返回默认值0
+            }
+            set
+            {
+                // 索引映射：0->0, 1->1, 2->6, 3->7
+                int[] modeMap = { 0, 1, 6, 7 };
+                try
+                {
+                    bool wasCapturing = _isCapturing;
+                    if (wasCapturing)   StopCapture();
+                     
+                    int actualMode = modeMap[value];
+                    _camera!.ReadoutMode = (ulong)actualMode;
+                    _currentReadoutMode = actualMode;
+
+                    if (wasCapturing)
+                        StartCapture();
+
+                    Console.WriteLine($"[INFO] Image mode set to: {EyeCam.Shared.Revealer.ReadoutModeList[actualMode]}");
+                }
+                catch (Exception ex)
+                {
+                    HandleCameraException(ex, "设置图像模式");
+                }
             }
         }
 

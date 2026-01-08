@@ -8,7 +8,6 @@ namespace Simscop.Spindisk.Core.FakeHardware
 {
     public class FakeCamera : ICamera
     {
-
         private readonly DispatcherTimer _timer;
         private readonly object _lock = new();
         private readonly string[] _imagePaths;
@@ -137,10 +136,14 @@ namespace Simscop.Spindisk.Core.FakeHardware
             "Mode7"
         };
 
-        public List<string> PseudoColorList => new() { "伪彩1","伪彩2"};
+        public List<string> PseudoColorList => new() { "默认", "伪彩1", "伪彩2" };
 
-        public bool FrameRateEnable { get; set ; }=true;
+        public bool FrameRateEnable { get; set; } = true;
         public double FrameRateLimit { get; set; } = 0;
+        public int ImageModeIndex { get; set; } = 0;
+        public int FlipIndex { get; set; } = 0;
+
+        public List<string> FlipList => new() { "默认", "垂直翻转", "水平翻转" };
 
         public bool SetCompositeMode(int mode) => true;
 

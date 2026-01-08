@@ -279,6 +279,22 @@ public interface ICamera
     /// </summary>
     public double FrameRateLimit { get; set; }
 
+    /// <summary>
+    /// 图像模式类型
+    /// </summary>
+    public int ImageModeIndex { get; set; }
+
+    /// <summary>
+    /// 图像翻转类型
+    /// </summary>
+    public int FlipIndex { get; set; }
+
+    /// <summary>
+    /// 图像翻转列表
+    /// </summary>
+    public List<string>FlipList { get; }
+
+
 }
 
 public enum InfoEnum

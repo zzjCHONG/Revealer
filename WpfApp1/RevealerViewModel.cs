@@ -74,25 +74,22 @@ namespace WpfApp1
             ImageModeList = _camera.ImageModesList;
             CompositeModeList = _camera.CompositeModeList;
             PseudoColorList = _camera.PseudoColorList;
-            FrameRateLimit = _camera.FrameRateLimit;
+            FrameRateLimit = _camera.FrameRateLimit; 
+            FlipList = _camera.FlipList;
 
-            IsFlipHorizontal = _camera.IsFlipHorizontally;
-            IsFlipVertical = _camera.IsFlipVertially;
-            IsAutoExposure = _camera.IsAutoExposure;
-            IsAutoLevel = _camera.IsAutoLevel;
-
+            FlipIndex = _camera.FlipIndex;
+            ImageModeIndex = _camera.ImageModeIndex;
             ResolutionIndex = 0;
             ROIIndex = 0;
             preRoiIndex = ROIIndex;
             PseudoColorIndex = 0;
-            ImageModeIndex = 3;//高动态模式
-            IsFlipHorizontal = false;
-            IsFlipVertical = false;
-            IsAutoExposure = false;
 
-            Exposure = 10;
-            //ImageModeIndex = 1;
-            //IsAutoLevel = true;//相机在开启采集后才能正确开启该设置
+            IsAutoExposure = _camera.IsAutoExposure;
+            IsAutoLevel = _camera.IsAutoLevel;
+
+            Exposure = 50;
+            FrameRateEnable=false;
+
         }
 
         private void OnTimerElapsed(object sender, ElapsedEventArgs e)
@@ -101,14 +98,11 @@ namespace WpfApp1
             LeftLevel = _camera.CurrentLevel.Left;
             RightLevel = _camera.CurrentLevel.Right;
             FrameRate = _camera!.FrameRate;
-
             FrameRateLimit = _camera!.FrameRateLimit;
-            //Gamma = _camera!.Gamma;
-            //Contrast = _camera!.Contrast;
-            //Brightness = _camera!.Brightness;
+            Gamma = _camera!.Gamma;
+            Contrast = _camera!.Contrast;
+            Brightness = _camera!.Brightness;
 
-            //Debug.WriteLine("#############"+FrameRate);
-            //Debug.WriteLine("*************" + FrameRateLimit);
         }
 
         [ObservableProperty]
@@ -138,11 +132,12 @@ namespace WpfApp1
         [ObservableProperty]
         public double _frameRate = 0;
 
-        [ObservableProperty]
-        public bool _isFlipHorizontal = false;
 
         [ObservableProperty]
-        public bool _isFlipVertical = false;
+        public List<string> flipList;
+
+        [ObservableProperty]
+        public int flipIndex;
 
         [ObservableProperty]
         private int _leftLevel = 0;
@@ -213,12 +208,14 @@ namespace WpfApp1
 
         partial void OnFrameRateLimitChanged(double value)
         {
-            _camera!.FrameRateLimit = value;
+            if (value != _camera!.FrameRateLimit)
+                _camera!.FrameRateLimit = value;
         }
 
         partial void OnFrameRateEnableChanged(bool value)
         {
-            _camera!.FrameRateEnable = value;
+            if (value != _camera!.FrameRateEnable)
+                _camera!.FrameRateEnable = value;
         }
 
         public bool IsOperable => !IsConnected;
@@ -238,19 +235,18 @@ namespace WpfApp1
         [RelayCommand]
         void RestoretoInitialSettings()
         {
-            IsFlipHorizontal = false;
-            IsFlipVertical = false;
             Brightness = 50;
             Contrast = 50;
             Gamma = 56;
-            Exposure = 10;
-            LeftLevel = 0;
-            RightLevel = 65535;
+            Exposure = 50;
+            LeftLevel = (int)LevelRangeMin;
+            RightLevel = (int)LevelRangeMax;
 
             ResolutionIndex = 0;
             ROIIndex = 0;
             PseudoColorIndex = 0;
-            ImageModeIndex = 0;
+            ImageModeIndex = 3;
+            FlipIndex = 0;
         }
 
         private static string? _lastSaveDirectory;
@@ -432,49 +428,44 @@ namespace WpfApp1
 
         partial void OnGammaChanged(double value)
         {
+            if(value!=_camera!.Gamma)
             _camera!.Gamma = value;
         }
 
         partial void OnBrightnessChanged(double value)
         {
-            _camera!.Brightness = value;
+            if (value != _camera!.Brightness)
+                _camera!.Brightness = value;
         }
 
         partial void OnContrastChanged(double value)
         {
-            _camera!.Contrast = value;
-        }
-
-        partial void OnIsFlipHorizontalChanged(bool value)
-        {
-            _camera!.IsFlipHorizontally = value;
-        }
-
-        partial void OnIsFlipVerticalChanged(bool value)
-        {
-            _camera!.IsFlipVertially = value;
+            if (value != _camera!.Contrast)
+                _camera!.Contrast = value;
         }
 
         partial void OnImageModeIndexChanged(int value)
         {
-            _camera!.SetImageMode(value);
+            if(_camera!.ImageModeIndex!=value)
+                _camera!.ImageModeIndex = value;
         }
 
         partial void OnLeftLevelChanged(int value)
         {
-            if (!IsAutoLevel)
+            if (!IsAutoLevel&& value != _camera!.CurrentLevel.Left)
                 _camera!.CurrentLevel = (value, RightLevel);
         }
 
         partial void OnRightLevelChanged(int value)
         {
-            if (!IsAutoLevel)
+            if (!IsAutoLevel && value != _camera!.CurrentLevel.Right)
                 _camera!.CurrentLevel = (LeftLevel, value);
         }
 
         partial void OnPseudoColorIndexChanged(int value)
         {
-            _camera!.PseudoColor = value;
+            if (value != _camera!.PseudoColor)
+                _camera!.PseudoColor = value;
         }
 
         async partial void OnCompositeModeIndexChanged(int value)
@@ -555,6 +546,12 @@ namespace WpfApp1
                 3 => (512, 512),   // 512x512(4x4Bin)
                 _ => (0, 0)
             };
+        }
+
+        partial void OnFlipIndexChanged(int value)
+        {
+            if (value != _camera!.FlipIndex)
+                _camera!.FlipIndex = value;
         }
 
         private bool IsROIIndexChangedEnable = false;

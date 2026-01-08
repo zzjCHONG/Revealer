@@ -1,5 +1,6 @@
 ﻿using EyeCam.Shared.Native;
 using OpenCvSharp;
+using System.Diagnostics;
 using System.Text;
 
 namespace EyeCam.Shared
@@ -65,11 +66,13 @@ namespace EyeCam.Shared
 
             //实测伪彩列表
 
+            "灰度-无伪彩",  //额外添加-5
             "HSV",                // 0: HSV色彩映射
             "Jet (Matlab风格)",   // 1: Jet色彩映射
             "蓝色渐变",            // 2: 蓝色渐变 
             "绿色渐变",           // 3: 绿色渐变
             "红色渐变",           // 4: 红色渐变 
+           
         };
 
         /// <summary>
@@ -133,8 +136,9 @@ namespace EyeCam.Shared
         /// </summary>
         public static readonly List<string> FlipModeList = new()
         {
-            "垂直翻转 (沿X轴)",          // 0
-            "水平翻转 (沿Y轴)",          // 1
+            "默认",//新增，默认无设置的状态
+            "垂直翻转",          // 0
+            "水平翻转",          // 1
             "垂直+水平翻转"              // 2
         };
 
@@ -1511,6 +1515,8 @@ namespace EyeCam.Shared
                     mat.Total() * mat.ElemSize(),
                     copySize
                 );
+
+                Debug.WriteLine("##" + matType.ToString() + $"_{imageData.width}*{imageData.height}");
 
                 return mat;
             }

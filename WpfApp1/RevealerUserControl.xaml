@@ -24,7 +24,8 @@
                     Margin="2,5"
                     BorderBrush="Black"
                     BorderThickness="1"
-                    CornerRadius="8">
+                    CornerRadius="8"
+                    IsEnabled="{Binding IsStartAcquisition}">
                     <StackPanel IsEnabled="{Binding PropControlIsEnable}">
 
                         <StackPanel.Resources>
@@ -101,7 +102,7 @@
                                     IsSnapToTickEnabled="True"
                                     Maximum="100"
                                     Minimum="-100"
-                                    Value="{Binding Brightness, Mode=TwoWay, Delay=100}" />
+                                    Value="{Binding Brightness, Mode=TwoWay}" />
                             </DockPanel>
                         </GroupBox>
 
@@ -123,7 +124,7 @@
                                     IsSnapToTickEnabled="True"
                                     Maximum="100"
                                     Minimum="0"
-                                    Value="{Binding Contrast, Mode=TwoWay, Delay=100}" />
+                                    Value="{Binding Contrast, Mode=TwoWay}" />
                             </DockPanel>
                         </GroupBox>
 
@@ -144,9 +145,117 @@
                                     IsSnapToTickEnabled="True"
                                     Maximum="100"
                                     Minimum="0"
-                                    Value="{Binding Gamma, Mode=TwoWay, Delay=100}" />
+                                    Value="{Binding Gamma, Mode=TwoWay}" />
                             </DockPanel>
                         </GroupBox>
+
+                        <GroupBox Header="图像翻转" IsEnabled="True">
+
+                            <ComboBox
+                                x:Name="FlipComboBox"
+                                ItemsSource="{Binding FlipList}"
+                                SelectedIndex="{Binding FlipIndex}" />
+
+                            <!--<DockPanel HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed">
+                                <ToggleButton
+                                    Grid.Column="1"
+                                    Width="Auto"
+                                    Margin="10,3,10,0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    liftui:StatusSwitchElement.HideUncheckedElement="False"
+                                    DockPanel.Dock="Left"
+                                    Focusable="False"
+                                    IsChecked="{Binding IsFlipHorizontal}"
+                                    Style="{DynamicResource ToggleButtonCustom}">
+
+                                    <liftui:StatusSwitchElement.CheckedElement>
+                                        <Border
+                                            Background="{DynamicResource PrimaryBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="5">
+                                            <Label
+                                                Height="32"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Content="水平翻转"
+                                                FontSize="13"
+                                                Foreground="White" />
+                                        </Border>
+                                    </liftui:StatusSwitchElement.CheckedElement>
+
+                                    <Border
+                                        Background="{DynamicResource RegionBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="5">
+                                        <Label
+                                            Height="32"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Content="水平翻转"
+                                            FontSize="13"
+                                            Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </Border>
+
+                                </ToggleButton>
+
+                                <ToggleButton
+                                    Grid.Column="2"
+                                    Width="Auto"
+                                    Margin="10,3,10,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    liftui:StatusSwitchElement.HideUncheckedElement="False"
+                                    DockPanel.Dock="Left"
+                                    Focusable="False"
+                                    IsChecked="{Binding IsFlipVertical}"
+                                    Style="{DynamicResource ToggleButtonCustom}">
+
+                                    <liftui:StatusSwitchElement.CheckedElement>
+                                        <Border
+                                            Background="{DynamicResource PrimaryBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="5">
+                                            <Label
+                                                Height="32"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Content="垂直翻转"
+                                                FontSize="13"
+                                                Foreground="White" />
+                                        </Border>
+                                    </liftui:StatusSwitchElement.CheckedElement>
+
+                                    <Border
+                                        Background="{DynamicResource RegionBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="5">
+                                        <Label
+                                            Height="32"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Content="垂直翻转"
+                                            FontSize="13"
+                                            Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </Border>
+
+                                </ToggleButton>
+
+                            </DockPanel>-->
+                        </GroupBox>
+
+                        <GroupBox Header="伪彩" IsEnabled="True">
+                            <ComboBox
+                                x:Name="PseudoColorModeComboBox"
+                                ItemsSource="{Binding PseudoColorList}"
+                                SelectedIndex="{Binding PseudoColorIndex}" />
+                        </GroupBox>
+
+                        <Separator Margin="10,5" Background="Black" />
 
                         <GroupBox Header="曝光(ms)" IsEnabled="True">
                             <DockPanel>
@@ -256,7 +365,7 @@
                                             Padding="10,0"
                                             Background="Transparent"
                                             BorderThickness="0"
-                                            Content="一次色阶"
+                                            Content="自动色阶"
                                             FontSize="13"
                                             Foreground="{DynamicResource PrimaryTextBrush}" />
                                     </Border>
@@ -297,28 +406,21 @@
                             </DockPanel>
                         </GroupBox>
 
-                        <GroupBox Header="伪彩" IsEnabled="True">
-                            <ComboBox
-                                x:Name="PseudoColorModeComboBox"
-                                ItemsSource="{Binding PseudoColorList}"
-                                SelectedIndex="{Binding PseudoColorIndex}" />
-                        </GroupBox>
-
-                        <GroupBox Header="Binning设置" IsEnabled="{Binding EnableControlwithIsStartAcquisition}">
+                        <GroupBox Header="Binning设置" IsEnabled="True">
                             <ComboBox
                                 x:Name="ResolutionComboBox"
                                 ItemsSource="{Binding ResolutionsList}"
                                 SelectedIndex="{Binding ResolutionIndex}" />
                         </GroupBox>
 
-                        <GroupBox Header="ROI选择" IsEnabled="{Binding EnableControlwithIsStartAcquisition}">
+                        <GroupBox Header="ROI选择" IsEnabled="True">
                             <ComboBox
                                 x:Name="ROIComboBox"
                                 ItemsSource="{Binding RoiList}"
                                 SelectedIndex="{Binding ROIIndex}" />
                         </GroupBox>
 
-                        <GroupBox Header="模式选择" IsEnabled="{Binding EnableControlwithIsStartAcquisition}">
+                        <GroupBox Header="模式选择" IsEnabled="True">
                             <ComboBox
                                 x:Name="ModeComboBox"
                                 ItemsSource="{Binding ImageModeList}"
@@ -333,99 +435,6 @@
                                 x:Name="CompositeModeComboBox"
                                 ItemsSource="{Binding CompositeModeList}"
                                 SelectedIndex="{Binding CompositeModeIndex}" />
-                        </GroupBox>
-
-                        <GroupBox Header="图像旋转" IsEnabled="{Binding EnableControlwithIsStartAcquisition}">
-                            <DockPanel>
-                                <ToggleButton
-                                    Grid.Column="1"
-                                    Width="Auto"
-                                    Margin="10,3,10,0"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    liftui:StatusSwitchElement.HideUncheckedElement="False"
-                                    DockPanel.Dock="Left"
-                                    Focusable="False"
-                                    IsChecked="{Binding IsFlipHorizontal}"
-                                    Style="{DynamicResource ToggleButtonCustom}">
-
-                                    <liftui:StatusSwitchElement.CheckedElement>
-                                        <Border
-                                            Background="{DynamicResource PrimaryBrush}"
-                                            BorderBrush="{DynamicResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="5">
-                                            <Label
-                                                Height="32"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Content="水平翻转"
-                                                FontSize="13"
-                                                Foreground="White" />
-                                        </Border>
-                                    </liftui:StatusSwitchElement.CheckedElement>
-
-                                    <Border
-                                        Background="{DynamicResource RegionBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="5">
-                                        <Label
-                                            Height="32"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Content="水平翻转"
-                                            FontSize="13"
-                                            Foreground="{DynamicResource PrimaryTextBrush}" />
-                                    </Border>
-
-                                </ToggleButton>
-
-                                <ToggleButton
-                                    Grid.Column="2"
-                                    Width="Auto"
-                                    Margin="10,3,10,0"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    liftui:StatusSwitchElement.HideUncheckedElement="False"
-                                    DockPanel.Dock="Left"
-                                    Focusable="False"
-                                    IsChecked="{Binding IsFlipVertical}"
-                                    Style="{DynamicResource ToggleButtonCustom}">
-
-                                    <liftui:StatusSwitchElement.CheckedElement>
-                                        <Border
-                                            Background="{DynamicResource PrimaryBrush}"
-                                            BorderBrush="{DynamicResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="5">
-                                            <Label
-                                                Height="32"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Content="垂直翻转"
-                                                FontSize="13"
-                                                Foreground="White" />
-                                        </Border>
-                                    </liftui:StatusSwitchElement.CheckedElement>
-
-                                    <Border
-                                        Background="{DynamicResource RegionBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="5">
-                                        <Label
-                                            Height="32"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Content="垂直翻转"
-                                            FontSize="13"
-                                            Foreground="{DynamicResource PrimaryTextBrush}" />
-                                    </Border>
-
-                                </ToggleButton>
-
-                            </DockPanel>
                         </GroupBox>
 
                         <GroupBox Header="帧率">
@@ -488,18 +497,6 @@
                                     </ToggleButton>
                                 </DockPanel>
 
-
-
-
-                                <!--<Button
-                                Width="100"
-                                Height="32"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                Command="{Binding ReconnectCommand}"
-                                Content="帧率使能"
-                                FontSize="13"
-                                IsEnabled="{Binding CanReconnect}" />-->
                             </DockPanel>
 
                         </GroupBox>
