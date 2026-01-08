@@ -29,7 +29,7 @@ namespace WpfApp1
         {
             _camera = new RevealerCamera();
 
-            _timer = new System.Timers.Timer(300);
+            _timer = new System.Timers.Timer(1000);
             _timer.Elapsed += OnTimerElapsed!;
 
             _camera.FrameReceived += img =>
@@ -97,6 +97,9 @@ namespace WpfApp1
         private void OnTimerElapsed(object sender, ElapsedEventArgs e)
         {
             Exposure = _camera!.Exposure;
+
+            Debug.WriteLine(Exposure);
+
             LeftLevel = _camera.CurrentLevel.Left;
             RightLevel = _camera.CurrentLevel.Right;
             FrameRate = _camera!.FrameRate;
@@ -399,6 +402,7 @@ namespace WpfApp1
         partial void OnIsAutoExposureChanged(bool value)
         {
             IsExposureTextboxEnable = !value;
+
             _ = HandleAutoExposureAsync(value);
         }
 
@@ -410,7 +414,7 @@ namespace WpfApp1
 
                 if (value)
                 {
-                    Thread.Sleep(3000);
+                    Thread.Sleep(2000);
                 }
             });
 

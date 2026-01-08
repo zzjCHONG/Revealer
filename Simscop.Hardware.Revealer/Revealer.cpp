@@ -1676,14 +1676,14 @@ REVEALER_API ErrorCode Camera_SetAutoExposureParam(CameraHandle handle, int mode
     SC_AutoExpParam param;
     param.origTargetGray = targetGray;
 
-    // 转换模式枚举
-    switch (mode)
-    {
-    case 0: param.mode = eAutoExpCenter; break;
-    case 1: param.mode = eAutoExpRight; break;
-    case 2: param.mode = eAutoExpInvalid; break;
-    default: param.mode = eAutoExpInvalid; break;
-    }
+	// 转换模式枚举
+	switch (mode)
+	{
+	case 0: param.mode = eAutoExpCenter; break;
+	case 1: param.mode = eAutoExpRight; break;
+	case 2: param.mode = eAutoExpInvalid; break;
+	default: param.mode = eAutoExpInvalid; break;
+	}
 
     return SC_SetAutoExposureParam(sdkHandle, &param);
 }

@@ -531,7 +531,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     if (value)
                     {
                         // 启用自动曝光：中央模式，目标灰度128
-                        _camera.SetAutoExposureParam(0, 128); // 0 = Center
+                        _camera.SetAutoExposureParam(0, -1); // 0 = Center
                         int actualGray = _camera.ExecuteAutoExposure();
                         Console.WriteLine($"[INFO] Auto exposure executed, target gray: {actualGray}");
                     }
