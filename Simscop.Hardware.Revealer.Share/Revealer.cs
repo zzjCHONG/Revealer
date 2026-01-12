@@ -66,13 +66,12 @@ namespace EyeCam.Shared
 
             //实测伪彩列表
 
-            "灰度-无伪彩",  //额外添加-5
             "HSV",                // 0: HSV色彩映射
             "Jet (Matlab风格)",   // 1: Jet色彩映射
             "蓝色渐变",            // 2: 蓝色渐变 
             "绿色渐变",           // 3: 绿色渐变
             "红色渐变",           // 4: 红色渐变 
-           
+            "灰度-无伪彩",  //额外添加-5
         };
 
         /// <summary>
@@ -1479,79 +1478,6 @@ namespace EyeCam.Shared
 
         #region 私有方法
 
-        //todo，此处后续可用：
-        //环形缓冲区 + 专用处理线程
-
-        /// <summary>
-        /// 将ImageData转换为OpenCV Mat
-        /// </summary>
-        private static unsafe Mat? ConvertImageDataToMat(ref NativeMethods.ImageData imageData, ulong readoutMode)
-        {
-            if (imageData.pData == IntPtr.Zero || imageData.dataSize == 0)
-                return null;
-
-            Mat? mat = null;
-            try
-            {
-                (MatType matType, int depth, int channels) = GetMatTypeFromPixelFormat(imageData.pixelFormat);
-
-                Debug.WriteLine($"{matType.ToString()}  {imageData.width}*{imageData.height}");
-
-                // ✅ 修复：对于10/12/16bit图像，每像素固定2字节
-                int bytesPerPixel;
-                if (matType == MatType.CV_16UC1)
-                {
-                    bytesPerPixel = 2;  // 16bit单通道，2字节
-                }
-                else if (matType == MatType.CV_8UC1)
-                {
-                    bytesPerPixel = 1;  // 8bit单通道，1字节
-                }
-                else if (matType == MatType.CV_8UC3)
-                {
-                    bytesPerPixel = 3;  // 8bit三通道，3字节
-                }
-                else
-                {
-                    // 通用计算（向上取整）
-                    bytesPerPixel = channels * ((depth + 7) / 8);
-                }
-
-                int width = imageData.width;
-                int height = imageData.height;
-                int sdkStride = imageData.stride;
-                int rowBytes = width * bytesPerPixel;  // ✅ 现在计算正确了
-
-                // 创建连续内存的Mat
-                mat = new Mat(height, width, matType);
-
-                // 按行复制
-                byte* srcBase = (byte*)imageData.pData.ToPointer();
-                byte* dstBase = (byte*)mat.Data.ToPointer();
-                int dstStride = (int)mat.Step();
-
-                for (int row = 0; row < height; row++)
-                {
-                    byte* srcRow = srcBase + (row * sdkStride);
-                    byte* dstRow = dstBase + (row * dstStride);
-
-                    Buffer.MemoryCopy(srcRow, dstRow, dstStride, rowBytes);
-                }
-
-                // 移位归一化
-                Mat? normalizedMat = NormalizeTo16Bit(mat, readoutMode);
-                mat.Dispose();
-
-                return normalizedMat;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[ERROR] Frame conversion failed: {ex.Message}");
-                mat?.Dispose();
-                return null;
-            }
-        }
-
         /// <summary>
         /// 根据像素格式获取Mat类型
         /// </summary>
@@ -1579,55 +1505,146 @@ namespace EyeCam.Shared
             return (MatType.CV_8UC1, 8, 1);
         }
 
-        /// <summary>
-        /// 将11bit或12bit图像转换为标准16bit（左移补齐高位）
-        /// </summary>
-        /// <param name="source">源图像</param>
-        /// <param name="readoutMode">读出模式</param>
-        /// <returns>归一化后的16bit图像</returns>
-        private static Mat? NormalizeTo16Bit(Mat source, ulong readoutMode)
-        {
-            if (source == null || source.Empty())
-                return null;
-
-            // 根据 ReadoutMode 确定位深度
-            // 0 = bit11_HS_Low    - 11位
-            // 1 = bit11_HS_High   - 11位
-            // 6 = bit12_CMS       - 12位
-            // 7 = bit16_From11    - 16位
-            int bitDepth = readoutMode switch
-            {
-                0 or 1 => 11,  // 11位高速模式
-                6 => 12,       // 12位低噪声模式
-                7 => 16,       // 16位高动态模式
-                _ => 16        // 默认16位
-            };
-
-            // 如果已经是16bit，直接返回
-            if (bitDepth == 16)
-                return source.Clone();
-
-            // 计算需要左移的位数
-            int leftShift = 16 - bitDepth;
-
-            if (leftShift <= 0)
-                return source.Clone();
-
-            Mat output = new Mat();
-
-            // 左移补齐到16bit
-            // 11bit: 左移5位 (0-2047 -> 0-65504)
-            // 12bit: 左移4位 (0-4095 -> 0-65520)
-            source.ConvertTo(output, MatType.CV_16UC1);
-            output *= (1 << leftShift);
-
-            return output;
-        }
-
         private void CheckDisposed()
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(Revealer));
+        }
+
+        /// <summary>
+        /// 将ImageData转换为OpenCV Mat
+        /// </summary>
+        private static unsafe Mat? ConvertImageDataToMat(ref NativeMethods.ImageData imageData, ulong readoutMode)
+        {
+            if (imageData.pData == IntPtr.Zero || imageData.dataSize == 0)
+                return null;
+
+            Mat? mat = null;
+            try
+            {
+                // 1. 获取图像参数
+                int width = imageData.width;
+                int height = imageData.height;
+                int sdkStride = imageData.stride;
+                int pixelFormat = imageData.pixelFormat;
+                int dataSize = imageData.dataSize;
+
+                // 2. 根据像素格式确定Mat类型
+                (MatType matType, int depth, int channels) = GetMatTypeFromPixelFormat(pixelFormat);
+
+                // 3. 计算理论每行字节数
+                int bytesPerPixel = channels * ((depth + 7) / 8);
+                int expectedRowBytes = width * bytesPerPixel;
+
+                // 4. 创建Mat
+                mat = new Mat(height, width, matType);
+                int matStride = (int)mat.Step();
+
+                byte* srcBase = (byte*)imageData.pData.ToPointer();
+                byte* dstBase = (byte*)mat.Data.ToPointer();
+
+                // 5. 根据 MatType 选择复制策略
+                bool useRowCopy = false;
+
+                if (matType == MatType.CV_8UC3)
+                {
+                    // 8UC3 处理图：数据连续，忽略 SDK stride
+                    useRowCopy = false;
+                }
+                else if (matType == MatType.CV_16UC1)
+                {
+                    // 16UC1 原图：检查是否有 stride padding
+                    useRowCopy = (sdkStride > expectedRowBytes);
+                }
+                else
+                {
+                    useRowCopy = (sdkStride > expectedRowBytes);
+                }
+
+                // 6. 执行复制
+                if (useRowCopy)
+                {
+                    // 按行复制（处理 stride padding）
+                    for (int row = 0; row < height; row++)
+                    {
+                        Buffer.MemoryCopy(
+                            srcBase + (row * sdkStride),
+                            dstBase + (row * matStride),
+                            matStride,
+                            expectedRowBytes
+                        );
+                    }
+                }
+                else
+                {
+                    // 一次性复制（数据连续）
+                    int copySize = Math.Min(dataSize, height * expectedRowBytes);
+                    Buffer.MemoryCopy(
+                        srcBase,
+                        dstBase,
+                        mat.Total() * mat.ElemSize(),
+                        copySize
+                    );
+                }
+
+                // 7. 8UC3 处理图：11bit/12bit 模式下需要亮度归一化
+                if (matType == MatType.CV_8UC3 && readoutMode != 7)
+                {
+                    int scaleFactor = readoutMode switch
+                    {
+                        0 or 1 => 8,   // 11bit: SDK 除以8，需要乘回8
+                        6 => 16,       // 12bit: SDK 除以16，需要乘回16
+                        _ => 1
+                    };
+
+                    if (scaleFactor > 1)
+                    {
+                        byte* ptr = (byte*)mat.Data.ToPointer();
+                        int totalBytes = width * height * 3;
+
+                        for (int i = 0; i < totalBytes; i++)
+                        {
+                            int value = ptr[i] * scaleFactor;
+                            ptr[i] = (byte)Math.Min(255, value);
+                        }
+
+                        Debug.WriteLine($"[8UC3 Normalization] ReadMode={readoutMode}, Scale=×{scaleFactor}");
+                    }
+                }
+
+                // 8. 16UC1 原图：11bit/12bit 模式下需要位移归一化
+                if (matType == MatType.CV_16UC1)
+                {
+                    int leftShift = readoutMode switch
+                    {
+                        0 or 1 => 5,  // 11bit: 左移5位 (0~2047 → 0~65535)
+                        6 => 4,       // 12bit: 左移4位 (0~4095 → 0~65535)
+                        7 => 0,       // 16bit: 不需要左移
+                        _ => 0
+                    };
+
+                    if (leftShift > 0)
+                    {
+                        ushort* ptr = (ushort*)mat.Data.ToPointer();
+                        int totalPixels = width * height;
+
+                        for (int i = 0; i < totalPixels; i++)
+                        {
+                            ptr[i] = (ushort)(ptr[i] << leftShift);
+                        }
+
+                        Debug.WriteLine($"[16UC1 Normalization] ReadMode={readoutMode}, LeftShift={leftShift}");
+                    }
+                }
+
+                return mat;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ConvertImageDataToMat ERROR] {ex.Message}");
+                mat?.Dispose();
+                return null;
+            }
         }
 
         #endregion

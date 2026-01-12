@@ -105,7 +105,7 @@
                                     IsSnapToTickEnabled="True"
                                     Maximum="100"
                                     Minimum="-100"
-                                    Value="{Binding Brightness, Mode=TwoWay}" />
+                                    Value="{Binding Brightness, Mode=TwoWay, Delay=100}" />
                             </DockPanel>
                         </GroupBox>
 
@@ -130,7 +130,7 @@
                                     IsSnapToTickEnabled="True"
                                     Maximum="100"
                                     Minimum="0"
-                                    Value="{Binding Contrast, Mode=TwoWay}" />
+                                    Value="{Binding Contrast, Mode=TwoWay, Delay=100}" />
                             </DockPanel>
                         </GroupBox>
 
@@ -154,7 +154,7 @@
                                     IsSnapToTickEnabled="True"
                                     Maximum="100"
                                     Minimum="0"
-                                    Value="{Binding Gamma, Mode=TwoWay}" />
+                                    Value="{Binding Gamma, Mode=TwoWay, Delay=100}" />
                             </DockPanel>
                         </GroupBox>
 

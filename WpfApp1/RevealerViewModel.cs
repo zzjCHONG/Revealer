@@ -25,28 +25,59 @@ namespace WpfApp1
         [ObservableProperty]
         private ImageSource? _display;
 
+        // ✅ 帧率限制字段
+        private long _lastFrameTime = 0;
+        private const long MinFrameInterval = 50; // 20fps 限制 (1000ms / 20)
+        private long _droppedFrames = 0;
+
         public RevealerViewModel()
         {
             _camera = new RevealerCamera();
-
             _timer = new System.Timers.Timer(1000);
             _timer.Elapsed += OnTimerElapsed!;
 
             _camera.FrameReceived += img =>
             {
                 if (img == null || img.Empty())
+                {
+                    img?.Dispose();
                     return;
+                }
+
+                // ✅ 帧率限制逻辑
+                long currentTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                long elapsed = currentTime - Interlocked.Read(ref _lastFrameTime);
+
+                if (elapsed < MinFrameInterval)
+                {
+                    // 丢弃帧
+                    Interlocked.Increment(ref _droppedFrames);
+                    img.Dispose();
+
+                    // 定期统计
+                    if (_droppedFrames % 100 == 0)
+                    {
+                        Debug.WriteLine($"[FPS Limiter] Dropped {_droppedFrames} frames (keeping <20fps)");
+                    }
+                    return;
+                }
+
+                // 更新时间戳
+                Interlocked.Exchange(ref _lastFrameTime, currentTime);
 
                 Application.Current?.Dispatcher.BeginInvoke(() =>
                 {
                     try
                     {
                         Display = BitmapFrame.Create(img.ToBitmapSource());
-                        img?.Dispose();
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine("OnCaptureChanged Error: " + ex.Message);
+                    }
+                    finally
+                    {
+                        img?.Dispose();
                     }
                 });
             };
@@ -82,7 +113,7 @@ namespace WpfApp1
             ResolutionIndex = 0;
             ROIIndex = 0;
             preRoiIndex = ROIIndex;
-            PseudoColorIndex = 0;
+            PseudoColorIndex = 5;
             LeftLevel = _camera.CurrentLevel.Left;
             RightLevel = _camera.CurrentLevel.Right;
 
@@ -90,8 +121,8 @@ namespace WpfApp1
             IsAutoLevel = _camera.IsAutoLevel;
 
             Exposure = 50;
-            FrameRateEnable=false;
 
+            FrameRateEnable = false;
         }
 
         private void OnTimerElapsed(object sender, ElapsedEventArgs e)
@@ -202,9 +233,9 @@ namespace WpfApp1
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsOperable))]
-        private bool frameRateEnable;
+        private bool frameRateEnable = true;
 
-        public bool IsframeRateEnableControl=> FrameRateEnable;
+        public bool IsFrameRateEnableControl => FrameRateEnable;
 
         [ObservableProperty]
         private double frameRateLimit;
@@ -238,18 +269,17 @@ namespace WpfApp1
         [RelayCommand]
         void RestoretoInitialSettings()
         {
+            ResolutionIndex = 0;
+            ROIIndex = 0;
+            PseudoColorIndex = 5;
+            ImageModeIndex = 3;
+            FlipIndex = 0;
             Brightness = 50;
             Contrast = 50;
             Gamma = 56;
             Exposure = 50;
             LeftLevel = (int)LevelRangeMin;
             RightLevel = (int)LevelRangeMax;
-
-            ResolutionIndex = 0;
-            ROIIndex = 0;
-            PseudoColorIndex = 0;
-            ImageModeIndex = 3;
-            FlipIndex = 0;
         }
 
         private static string? _lastSaveDirectory;

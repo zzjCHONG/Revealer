@@ -44,7 +44,7 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 {
                     if (!_sdkInitialized)
                     {
-                        EyeCam.Shared.Revealer.Initialize(logLevel: 2, logPath: ".", fileSize: 10 * 1024 * 1024, fileNum: 1);
+                        EyeCam.Shared.Revealer.Initialize(logLevel: 3, logPath: ".", fileSize: 10 * 1024 * 1024, fileNum: 1);
                         _sdkInitialized = true;
                         Console.WriteLine($"[INFO] SDK initialized, version: {EyeCam.Shared.Revealer.GetVersion()}");
                     }
@@ -1123,11 +1123,11 @@ namespace Simscop.Spindisk.Hardware.Revealer
             get
             {
                 if (_camera == null)
-                    return 0;//无伪彩
+                    return 5;//无伪彩
 
                 try
                 {
-                    if (!_camera.GetImageProcessingEnabled(3)) return 0;
+                    if (!_camera.GetImageProcessingEnabled(3)) return 5;
                     return _camera.GetPseudoColorMap();
                 }
                 catch
@@ -1142,14 +1142,14 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    if (value == 0)
+                    if (value == 5)
                     {
                         _camera.SetImageProcessingEnabled(3, false); //设置为该项使能关闭
                     }
                     else
                     {
                         _camera.SetImageProcessingEnabled(3, true); // 3 = PseudoColor
-                        int mode = Math.Clamp(value, 0, EyeCam.Shared.Revealer.PseudoColorMapList.Count) - 1;//第一个是新增的“默认选项”
+                        int mode = Math.Clamp(value, 0, EyeCam.Shared.Revealer.PseudoColorMapList.Count);//第一个是新增的“默认选项”
                         _camera.SetPseudoColorMap(mode);
                     }
                 }
