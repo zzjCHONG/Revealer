@@ -417,38 +417,31 @@ namespace EyeCam.Shared
                 throw new CameraException(ret);
         }
 
-        /// <summary>获取一帧图像（同步）</summary>
-        /// <param name="timeout">超时时间(毫秒), 0xFFFFFFFF表示无限等待</param>
-        public ImageFrame GetFrame(uint timeout = 5000)
-        {
-            CheckDisposed();
-
-            var imageData = new NativeMethods.ImageData();
-            int ret = NativeMethods.Camera_GetFrame(_handle, ref imageData, timeout);
-
-            if (ret != 0)
-                throw new CameraException(ret);
-
-            try
-            {
-                var frame = new ImageFrame(imageData);
-                return frame;
-            }
-            finally
-            {
-                // 释放SDK内部的帧资源
-                NativeMethods.Camera_ReleaseFrame(_handle, ref imageData);
-            }
-        }
-
-        /// <summary>获取处理后的图像（同步）</summary>
+        /// <summary>
+        /// 获取处理后的图像（同步方式）
+        /// ⚠️ 重要：调用前必须确保相机已经 StartGrabbing()
+        /// </summary>
         /// <param name="timeout">超时时间(毫秒)</param>
+        /// <returns>处理后的图像，调用者负责释放</returns>
+        /// <remarks>
+        /// 参考C++示例 Grab.cpp：
+        /// - 必须在 StartGrabbing() 后调用
+        /// - 会阻塞等待下一帧（timeout内）
+        /// - 返回的Mat是独立副本，调用者必须释放
+        /// - 底层已调用 Camera_ReleaseFrame 释放SDK缓冲区
+        /// </remarks>
         public Mat GetProcessedFrame(uint timeout = 5000)
         {
             CheckDisposed();
 
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             var imageData = new NativeMethods.ImageData();
             int ret = NativeMethods.Camera_GetProcessedFrame(_handle, ref imageData, timeout);
+
+            stopwatch.Stop();
+            Debug.WriteLine("###############" + stopwatch.ElapsedMilliseconds + "ms");
 
             if (ret != 0)
                 throw new CameraException(ret);
@@ -457,10 +450,7 @@ namespace EyeCam.Shared
             {
                 // ✅ 传递当前的 ReadoutMode
                 Mat? mat = ConvertImageDataToMat(ref imageData, this.ReadoutMode);
-                if (mat == null)
-                    throw new CameraException("图像转换失败");
-
-                return mat;
+                return mat ?? throw new CameraException("图像转换失败");
             }
             finally
             {
@@ -830,6 +820,20 @@ namespace EyeCam.Shared
             int ret = NativeMethods.Camera_AttachProcessedGrabbing(_handle, _frameCallback, IntPtr.Zero);
             if (ret != 0)
                 throw new CameraException(ret);
+        }
+
+        /// <summary>
+        /// 取消图像回调注册
+        /// </summary>
+        public void DetachGrabbing()
+        {
+            CheckDisposed();
+            int ret = NativeMethods.Camera_DetachGrabbing(_handle);
+            if (ret != 0)
+                throw new CameraException(ret);
+
+            // ✅ 清理委托引用
+            _frameCallback = null;
         }
 
         #endregion
@@ -1607,8 +1611,6 @@ namespace EyeCam.Shared
                             int value = ptr[i] * scaleFactor;
                             ptr[i] = (byte)Math.Min(255, value);
                         }
-
-                        Debug.WriteLine($"[8UC3 Normalization] ReadMode={readoutMode}, Scale=×{scaleFactor}");
                     }
                 }
 
@@ -1632,8 +1634,6 @@ namespace EyeCam.Shared
                         {
                             ptr[i] = (ushort)(ptr[i] << leftShift);
                         }
-
-                        Debug.WriteLine($"[16UC1 Normalization] ReadMode={readoutMode}, LeftShift={leftShift}");
                     }
                 }
 

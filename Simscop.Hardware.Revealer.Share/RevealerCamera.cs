@@ -242,6 +242,17 @@ namespace Simscop.Spindisk.Hardware.Revealer
                 if (_isCapturing)
                     StopCapture();
 
+                // ✅ 确保回调已取消
+                if (_callbackRegistered && _camera != null)
+                {
+                    try
+                    {
+                        _camera.DetachGrabbing();
+                        _callbackRegistered = false;
+                    }
+                    catch { }
+                }
+
                 _camera?.Close();
                 _camera?.Dispose();
                 _camera = null;
@@ -298,6 +309,8 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
         #region 采集控制
 
+        private bool _callbackRegistered;
+
         public bool StartCapture()
         {
             if (_camera == null || _isCapturing)
@@ -305,16 +318,14 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
             try
             {
-                // 设置缓冲区数量
                 _camera.SetBufferCount(10);
-
-                // 注册帧回调
+                _camera.TriggerInType = 0;
                 _camera.AttachProcessedGrabbing(OnFrameCallback);
-
-                // 开始采集
                 _camera.StartGrabbing();
 
+                _callbackRegistered = true;
                 _isCapturing = true;
+
                 _fpsStopwatch.Restart();
                 _frameCount = 0;
 
@@ -336,6 +347,15 @@ namespace Simscop.Spindisk.Hardware.Revealer
             try
             {
                 _camera.StopGrabbing();
+
+                // ✅ 关键修改：取消回调注册（解决异步/同步冲突）
+                if (_callbackRegistered)
+                {
+                    _camera.DetachGrabbing();
+                    _callbackRegistered = false;
+                    Console.WriteLine("[INFO] Frame callback detached");
+                }
+
                 _isCapturing = false;
 
                 lock (_lockObj)
@@ -356,23 +376,27 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
-        private void OnFrameCallback(Mat mat) // ✅ 参数改为 Mat
+        private void OnFrameCallback(Mat mat)
         {
             try
             {
-                // ✅ 直接使用Mat，无需转换
                 if (mat == null || mat.Empty())
                     return;
 
-                // 更新最新帧
+                // ✅ 改进1：只保存最新帧的引用（不Clone）
                 lock (_lockObj)
                 {
                     _latestFrame?.Dispose();
-                    _latestFrame = mat.Clone();
+                    _latestFrame = mat;  // 直接引用，由Revealer.cs负责释放
                 }
 
-                // 触发事件
-                FrameReceived?.Invoke(mat.Clone());
+                // ✅ 改进2：只在有订阅者时才Clone
+                if (FrameReceived != null)
+                {
+                    Mat clonedMat = mat.Clone();
+                    FrameReceived?.Invoke(clonedMat);
+                    // ⚠️ 订阅者必须负责释放这个clonedMat
+                }
 
                 // 计算FPS
                 _frameCount++;
@@ -382,8 +406,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
                     _frameCount = 0;
                     _fpsStopwatch.Restart();
                 }
-
-                // ✅ 注意：mat会在Revealer的回调中自动释放，这里不需要手动释放
             }
             catch (Exception ex)
             {
@@ -391,6 +413,89 @@ namespace Simscop.Spindisk.Hardware.Revealer
             }
         }
 
+        /// <summary>
+        /// 获取一帧图像
+        /// - 无论是否在连续采集中，都主动获取一帧新图像
+        /// - 如果正在连续采集，会暂停→获取→恢复
+        /// </summary>
+        //public bool Capture(out Mat? img)
+        //{
+        //    img = null;
+
+        //    if (_camera == null)
+        //        return false;
+
+        //    bool wasCapturing = _isCapturing;
+        //    ulong previousTriggerMode = 0;
+
+        //    try
+        //    {
+        //        // ✅ 步骤1：如果正在连续采集，先暂停
+        //        if (wasCapturing)
+        //        {
+        //            Console.WriteLine("[INFO] Pausing continuous capture to get new frame");
+        //            _camera.StopGrabbing();
+        //            _isCapturing = false;
+        //        }
+
+        //        _camera.TriggerInType = 5; // Software Trigger
+
+        //        // ✅ 步骤3：开始采集（必须，参考C++ Grab.cpp）
+        //        _camera.StartGrabbing();
+
+        //        // ✅ 步骤4：发送软件触发
+        //        _camera.SoftwareTrigger();
+
+        //        // ✅ 步骤5：同步获取处理后的帧
+        //        img = _camera.GetProcessedFrame(5000);
+
+        //        // ✅ 步骤6：停止采集
+        //        _camera.StopGrabbing();
+
+        //        // ✅ 步骤8：如果之前在连续采集，恢复
+        //        if (wasCapturing)
+        //        {
+        //            Console.WriteLine("[INFO] Resuming continuous capture");
+        //            _camera.StartGrabbing();
+        //            _isCapturing = true;
+        //        }
+
+        //        return img != null && !img.Empty();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        HandleCameraException(ex, "获取图像");
+
+        //        // ⚠️ 异常恢复：确保相机状态一致
+        //        try
+        //        {
+        //            if (_camera.IsGrabbing)
+        //                _camera.StopGrabbing();
+
+        //            if (previousTriggerMode != 0)
+        //                _camera.TriggerInType = previousTriggerMode;
+
+        //            if (wasCapturing)
+        //            {
+        //                _camera.StartGrabbing();
+        //                _isCapturing = true;
+        //            }
+        //        }
+        //        catch
+        //        {
+        //            // 恢复失败，标记状态
+        //            _isCapturing = false;
+        //        }
+
+        //        return false;
+        //    }
+        //}
+
+        /// <summary>
+        /// 获取一帧图像
+        /// - 无论是否在连续采集中，都主动获取一帧新图像
+        /// - 如果正在连续采集，会暂停→获取→恢复（包括回调）
+        /// </summary>
         public bool Capture(out Mat? img)
         {
             img = null;
@@ -398,49 +503,88 @@ namespace Simscop.Spindisk.Hardware.Revealer
             if (_camera == null)
                 return false;
 
+            bool wasCapturing = _isCapturing;
+
             try
             {
-                if (_isCapturing)
+                // ✅ 步骤1：如果正在连续采集，先完全停止（包括取消回调）
+                if (wasCapturing)
                 {
-                    // 连续采集模式：返回最新帧的副本
-                    lock (_lockObj)
-                    {
-                        if (_latestFrame != null && !_latestFrame.Empty())
-                        {
-                            img = _latestFrame.Clone();
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-                else
-                {
-                    // 单帧采集模式（软件触发）
-                    var previousMode = _camera.TriggerInType;
-
-                    // 配置软件触发 - 使用索引5
-                    _camera.TriggerInType = 5; // Software
-                    //_camera.SetBufferCount(3);
-                    _camera.StartGrabbing();
-
-                    // 发送软件触发
-                    _camera.SoftwareTrigger();
-
-                    // ✅ 直接获取Mat（带超时）
-                    img = _camera.GetProcessedFrame(5000);
-
-                    // 停止采集
+                    Console.WriteLine("[INFO] Pausing continuous capture to get new frame");
                     _camera.StopGrabbing();
 
-                    // 恢复之前的触发模式
-                    _camera.TriggerInType = previousMode;
+                    // 取消回调（避免同步/异步冲突）
+                    if (_callbackRegistered)
+                    {
+                        _camera.DetachGrabbing();
+                        _callbackRegistered = false;
+                    }
 
-                    return img != null && !img.Empty();
+                    _isCapturing = false;
                 }
+
+                // ✅ 步骤2：设置软件触发模式
+                _camera.TriggerInType = 5; // Software Trigger
+
+                // ✅ 步骤3：开始采集
+                _camera.StartGrabbing();
+
+                // ✅ 步骤4：发送软件触发
+                _camera.SoftwareTrigger();
+
+                // ✅ 步骤5：同步获取处理后的帧
+                img = _camera.GetProcessedFrame(5000);
+
+                // ✅ 步骤6：停止采集
+                _camera.StopGrabbing();
+
+                // ✅ 步骤7：恢复触发模式
+                _camera.TriggerInType = 0; // 恢复为连续模式
+
+                // ✅ 步骤8：如果之前在连续采集，完全恢复（包括回调）
+                if (wasCapturing)
+                {
+                    Console.WriteLine("[INFO] Resuming continuous capture");
+
+                    // 重新注册回调
+                    _camera.AttachProcessedGrabbing(OnFrameCallback);
+                    _callbackRegistered = true;
+
+                    // 重新启动连续采集
+                    _camera.StartGrabbing();
+                    _isCapturing = true;
+                }
+
+                return img != null && !img.Empty();
             }
             catch (Exception ex)
             {
-                HandleCameraException(ex, "单帧采集");
+                HandleCameraException(ex, "获取图像");
+
+                // ⚠️ 异常恢复：确保相机状态一致
+                try
+                {
+                    if (_camera.IsGrabbing)
+                        _camera.StopGrabbing();
+
+                    _camera.TriggerInType = 0; // 恢复触发模式
+
+                    if (wasCapturing)
+                    {
+                        // 恢复连续采集（包括回调）
+                        _camera.AttachProcessedGrabbing(OnFrameCallback);
+                        _callbackRegistered = true;
+                        _camera.StartGrabbing();
+                        _isCapturing = true;
+                    }
+                }
+                catch
+                {
+                    // 恢复失败，标记状态
+                    _isCapturing = false;
+                    _callbackRegistered = false;
+                }
+
                 return false;
             }
         }
@@ -1636,11 +1780,11 @@ namespace Simscop.Spindisk.Hardware.Revealer
             if (ex is CameraException cameraEx)
             {
                 string errorMsg = CameraErrorCodeHelper.GetChineseMessage(cameraEx.ErrorCode);
-                Console.WriteLine($"[ERROR] {operation}失败: {errorMsg} (错误码: {cameraEx.ErrorCode})");
+                Debug.WriteLine($"[ERROR] {operation}失败: {errorMsg} (错误码: {cameraEx.ErrorCode})");
             }
             else
             {
-                Console.WriteLine($"[ERROR] {operation}失败: {ex.Message}");
+                Debug.WriteLine($"[ERROR] {operation}失败: {ex.Message}");
             }
         }
 

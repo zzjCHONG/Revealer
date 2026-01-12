@@ -131,7 +131,7 @@ namespace WpfApp1
             LeftLevel = _camera.CurrentLevel.Left;
             RightLevel = _camera.CurrentLevel.Right;
             FrameRate = _camera!.FrameRate;
-            FrameRateLimit = _camera!.FrameRateLimit;
+            //FrameRateLimit = _camera!.FrameRateLimit;
             Gamma = _camera!.Gamma;
             Contrast = _camera!.Contrast;
             Brightness = _camera!.Brightness;
@@ -324,7 +324,6 @@ namespace WpfApp1
 
                         if (image!.SaveImage(dlg.FileName))
                         {
-                            MessageBox.Show("保存完成!");
                             //Global.Info("保存完成!");
 
                             if (!string.Equals(Path.GetDirectoryName(dlg.FileName), initialDir, StringComparison.OrdinalIgnoreCase))

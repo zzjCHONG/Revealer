@@ -154,6 +154,9 @@ namespace EyeCam.Shared.Native
 
         #region 5.5 相机数据流操作
 
+        [DllImport(DllName, CallingConvention = Convention)]
+        public static extern int Camera_DetachGrabbing(IntPtr handle);
+
         /// <summary>开始采集</summary>
         [DllImport(DllName, CallingConvention = Convention)]
         public static extern int Camera_StartGrabbing(IntPtr handle);

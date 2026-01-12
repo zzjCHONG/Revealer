@@ -2044,6 +2044,27 @@ REVEALER_API ErrorCode Camera_AttachProcessedGrabbing(CameraHandle handle, Frame
 }
 
 /// <summary>
+/// 取消处理后图像的回调注册
+/// </summary>
+/// <param name="handle">设备句柄</param>
+/// <returns>SC_OK(0)表示成功</returns>
+/// <remarks>
+/// 重要：SDK要求同步采集（GetProcessedFrame）和异步采集（回调）不能同时进行
+/// 必须在使用同步方式前取消异步回调
+/// </remarks>
+REVEALER_API ErrorCode Camera_DetachGrabbing(CameraHandle handle)
+{
+    SC_DEV_HANDLE sdkHandle = GetSDKHandle(handle);
+    if (!sdkHandle) return -1;
+
+    // 从映射表中移除
+    g_processedFrameCallbackMap.erase(handle);
+
+    // 调用SDK接口取消回调（传递nullptr取消注册）
+    return SC_AttachProImgGrabbing(sdkHandle, nullptr, nullptr);
+}
+
+/// <summary>
 /// 设置ROI（感兴趣区域）
 /// </summary>
 REVEALER_API ErrorCode Camera_SetROI(CameraHandle handle, long long width, long long height,

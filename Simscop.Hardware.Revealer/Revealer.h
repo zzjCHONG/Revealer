@@ -403,6 +403,11 @@ extern "C" {
 	/// </remarks>
 	REVEALER_API ErrorCode Camera_AttachProcessedGrabbing(CameraHandle handle, FrameCallBack proc, void* pUser);
 
+	/// <summary>
+/// 取消处理后图像的回调注册
+/// </summary>
+	REVEALER_API ErrorCode Camera_DetachGrabbing(CameraHandle handle);
+
 	/// <summary>获取伪彩映射模式</summary>
 	REVEALER_API ErrorCode Camera_GetPseudoColorMap(CameraHandle handle, int* pMapMode);
 
