@@ -1202,14 +1202,9 @@ namespace EyeCam.Shared
         /// </remarks>
         public double AcquisitionFrameRate
         {
-            get => GetFloatFeature("AcquisitionFrameRate");
+            get => GetFloatFeatureMax("AcquisitionFrameRate");
             set => SetFloatFeature("AcquisitionFrameRate", value);
         }
-
-        /// <summary>
-        /// 获取最大可用帧率
-        /// </summary>
-        public double MaxAcquisitionFrameRate => GetFloatFeatureMax("AcquisitionFrameRate");
 
         /// <summary>帧率使能</summary>
         /// <remarks>

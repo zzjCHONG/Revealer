@@ -131,7 +131,7 @@ namespace WpfApp1
             LeftLevel = _camera.CurrentLevel.Left;
             RightLevel = _camera.CurrentLevel.Right;
             FrameRate = _camera!.FrameRate;
-            //FrameRateLimit = _camera!.FrameRateLimit;
+            FrameRateLimit = _camera!.FrameRateLimit;
             Gamma = _camera!.Gamma;
             Contrast = _camera!.Contrast;
             Brightness = _camera!.Brightness;

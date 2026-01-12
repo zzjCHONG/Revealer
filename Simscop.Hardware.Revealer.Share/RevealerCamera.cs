@@ -416,84 +416,6 @@ namespace Simscop.Spindisk.Hardware.Revealer
         /// <summary>
         /// 获取一帧图像
         /// - 无论是否在连续采集中，都主动获取一帧新图像
-        /// - 如果正在连续采集，会暂停→获取→恢复
-        /// </summary>
-        //public bool Capture(out Mat? img)
-        //{
-        //    img = null;
-
-        //    if (_camera == null)
-        //        return false;
-
-        //    bool wasCapturing = _isCapturing;
-        //    ulong previousTriggerMode = 0;
-
-        //    try
-        //    {
-        //        // ✅ 步骤1：如果正在连续采集，先暂停
-        //        if (wasCapturing)
-        //        {
-        //            Console.WriteLine("[INFO] Pausing continuous capture to get new frame");
-        //            _camera.StopGrabbing();
-        //            _isCapturing = false;
-        //        }
-
-        //        _camera.TriggerInType = 5; // Software Trigger
-
-        //        // ✅ 步骤3：开始采集（必须，参考C++ Grab.cpp）
-        //        _camera.StartGrabbing();
-
-        //        // ✅ 步骤4：发送软件触发
-        //        _camera.SoftwareTrigger();
-
-        //        // ✅ 步骤5：同步获取处理后的帧
-        //        img = _camera.GetProcessedFrame(5000);
-
-        //        // ✅ 步骤6：停止采集
-        //        _camera.StopGrabbing();
-
-        //        // ✅ 步骤8：如果之前在连续采集，恢复
-        //        if (wasCapturing)
-        //        {
-        //            Console.WriteLine("[INFO] Resuming continuous capture");
-        //            _camera.StartGrabbing();
-        //            _isCapturing = true;
-        //        }
-
-        //        return img != null && !img.Empty();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        HandleCameraException(ex, "获取图像");
-
-        //        // ⚠️ 异常恢复：确保相机状态一致
-        //        try
-        //        {
-        //            if (_camera.IsGrabbing)
-        //                _camera.StopGrabbing();
-
-        //            if (previousTriggerMode != 0)
-        //                _camera.TriggerInType = previousTriggerMode;
-
-        //            if (wasCapturing)
-        //            {
-        //                _camera.StartGrabbing();
-        //                _isCapturing = true;
-        //            }
-        //        }
-        //        catch
-        //        {
-        //            // 恢复失败，标记状态
-        //            _isCapturing = false;
-        //        }
-
-        //        return false;
-        //    }
-        //}
-
-        /// <summary>
-        /// 获取一帧图像
-        /// - 无论是否在连续采集中，都主动获取一帧新图像
         /// - 如果正在连续采集，会暂停→获取→恢复（包括回调）
         /// </summary>
         public bool Capture(out Mat? img)
@@ -968,11 +890,11 @@ namespace Simscop.Spindisk.Hardware.Revealer
 
                 try
                 {
-                    // 如果启用了帧率控制，返回设定的帧率
-                    if (_camera.FrameRateEnable)
-                    {
-                        return _camera.AcquisitionFrameRate;
-                    }
+                    //// 如果启用了帧率控制，返回设定的帧率
+                    //if (_camera.FrameRateEnable)
+                    //{
+                    //    return _camera.AcquisitionFrameRate;
+                    //}
                     // 否则返回计算的实际帧率
                     return _calculatedFps;
                 }
